@@ -1,0 +1,98 @@
+# ==========================================
+# Go (Golang) Artifacts
+# ==========================================
+# Compiled binaries and local executable files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+out/
+
+# Test binaries and coverage artifacts
+*.test
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Go workspace and local module overrides
+go.work
+go.work.sum
+
+# Developer dependency caching (if using vendor)
+# vendor/
+
+
+# ==========================================
+# Python Artifacts
+# ==========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+# (Uncomment if building Python libraries)
+# .Python
+# build/
+# develop-eggs/
+# dist/
+# downloads/
+# eggs/
+# .eggs/
+# lib/
+# lib64/
+# parts/
+# sdist/
+# var/
+# wheels/
+# share/python-wheels/
+# *.egg-info/
+# .installed.cfg
+# *.egg
+# MANIFEST
+
+# Local virtual environments
+.venv/
+venv/
+ENV/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+
+# ==========================================
+# Environments and Secrets
+# ==========================================
+# Sensitive credentials and local configs
+.env
+.env.local
+.env.*.local
+*.secret
+*.pem
+
+
+# ==========================================
+# IDEs and OS Junk
+# ==========================================
+# JetBrains (GoLand / PyCharm)
+.idea/
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Operating System specific files
+.DS_Store
+Thumbs.db
