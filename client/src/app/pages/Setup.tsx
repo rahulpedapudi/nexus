@@ -1,26 +1,21 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { useNavigate, Link } from 'react-router';
+import { Link } from 'react-router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Bot, Mail, Lock, User } from 'lucide-react';
+import { useSetup } from '../../hooks/useSetup';
 
 export const Setup = () => {
-  const navigate = useNavigate();
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const setup = useSetup();
 
   const handleSetup = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Mock setup delay -> go to onboarding after setup
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate('/onboarding');
-    }, 1000);
+    setup.mutate({ email, username, password });
   };
 
   return (
@@ -49,17 +44,17 @@ export const Setup = () => {
           <Card className="w-full p-8 mt-4 border-border/50 bg-card/50 backdrop-blur-sm">
             <form onSubmit={handleSetup} className="space-y-5">
               <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-foreground">Name</label>
+                <label className="text-sm font-medium text-foreground">Username</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
                     <User className="w-4 h-4" />
                   </div>
                   <Input 
                     type="text" 
-                    placeholder="John Doe" 
+                    placeholder="johndoe" 
                     className="pl-10"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                   />
                 </div>
@@ -99,8 +94,8 @@ export const Setup = () => {
                 </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Creating account...' : 'Create account'}
+              <Button type="submit" size="lg" className="w-full" disabled={setup.isPending}>
+                {setup.isPending ? 'Creating account...' : 'Create account'}
               </Button>
             </form>
           </Card>

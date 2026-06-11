@@ -1,24 +1,40 @@
-import { ReactNode } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
-import { motion } from 'motion/react';
-import { Home, Layers, BrainCircuit, User as UserIcon, Settings } from 'lucide-react';
-import { useStore } from '../store';
+import { ReactNode } from "react";
+import { NavLink, Navigate, Outlet, useLocation } from "react-router";
+import { motion } from "motion/react";
+import {
+  Home,
+  Layers,
+  BrainCircuit,
+  User as UserIcon,
+  Settings,
+} from "lucide-react";
+import { useStore } from "../store";
+import { useMe } from "../../hooks/useMe";
 
-const SidebarItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
+const SidebarItem = ({
+  to,
+  icon: Icon,
+  label,
+}: {
+  to: string;
+  icon: any;
+  label: string;
+}) => {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
         `flex items-center gap-4 px-4 py-3 rounded-none border-l-2 transition-all duration-200 group ${
           isActive
-            ? 'border-primary text-foreground bg-primary/5'
-            : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            ? "border-primary text-foreground bg-primary/5"
+            : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
         }`
-      }
-    >
+      }>
       {({ isActive }) => (
         <>
-          <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-primary' : 'group-hover:text-foreground'}`} />
+          <Icon
+            className={`w-5 h-5 shrink-0 transition-colors ${isActive ? "text-primary" : "group-hover:text-foreground"}`}
+          />
           <span className="font-medium whitespace-nowrap overflow-hidden opacity-0 w-0 group-hover:opacity-100 group-hover:w-auto transition-all duration-300">
             {label}
           </span>
@@ -29,8 +45,13 @@ const SidebarItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: 
 };
 
 export const Layout = () => {
-  const user = useStore((state) => state.user);
-  
+  const { data: user } = useMe();
+
+  // User hasn't linked Telegram → send to onboarding
+  if (user && !user.is_setup_complete) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
@@ -46,18 +67,24 @@ export const Layout = () => {
           </div>
           <nav className="flex flex-col gap-1">
             <SidebarItem to="/dashboard" icon={Home} label="Dashboard" />
-            <SidebarItem to="/integrations" icon={Layers} label="Integrations" />
+            <SidebarItem
+              to="/integrations"
+              icon={Layers}
+              label="Integrations"
+            />
             <SidebarItem to="/memory" icon={BrainCircuit} label="Memory" />
             <SidebarItem to="/account" icon={UserIcon} label="Account" />
           </nav>
         </div>
-        
+
         <div className="p-4 border-t border-border flex items-center gap-4">
           <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0 font-medium text-sm border border-border">
-            {user?.name.charAt(0) || 'U'}
+            {user?.username?.charAt(0)?.toUpperCase()}
           </div>
           <div className="flex flex-col whitespace-nowrap overflow-hidden opacity-0 w-0 group-hover:opacity-100 group-hover:w-auto transition-all duration-300">
-            <span className="text-sm font-medium leading-tight">{user?.name}</span>
+            <span className="text-sm font-medium leading-tight">
+              {user?.username}
+            </span>
             <span className="text-xs text-muted-foreground">Settings</span>
           </div>
         </div>

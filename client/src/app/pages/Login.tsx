@@ -1,25 +1,20 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { useNavigate, Link } from 'react-router';
+import { Link } from 'react-router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Bot, Mail, Lock } from 'lucide-react';
+import { useLogin } from '../../hooks/useLogin';
 
 export const Login = () => {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const login = useLogin();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Mock login delay
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate('/dashboard');
-    }, 1000);
+    login.mutate({ username, password });
   };
 
   return (
@@ -48,17 +43,17 @@ export const Login = () => {
           <Card className="w-full p-8 mt-4 border-border/50 bg-card/50 backdrop-blur-sm">
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-foreground">Email</label>
+                <label className="text-sm font-medium text-foreground">Username</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
                     <Mail className="w-4 h-4" />
                   </div>
                   <Input 
-                    type="email" 
-                    placeholder="name@example.com" 
+                    type="text" 
+                    placeholder="your username" 
                     className="pl-10"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                   />
                 </div>
@@ -81,8 +76,8 @@ export const Login = () => {
                 </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing in...' : 'Sign in'}
+              <Button type="submit" size="lg" className="w-full" disabled={login.isPending}>
+                {login.isPending ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
           </Card>
