@@ -18,7 +18,7 @@ class Message(Base):
     __tablename__ = "messages"
 
     __table_args__ = (
-        Index("idx_messages_conv_id", "conv_id"),
+        # Index("idx_messages_conv_id", "conv_id"),
         Index("idx_messages_user_id", "user_id"),
     )
     id = Column(
@@ -27,10 +27,10 @@ class Message(Base):
         default=uuid.uuid4
     )
 
-    conv_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("conversations.id", ondelete="CASCADE")
-    )
+    # conv_id = Column(
+    #     UUID(as_uuid=True),
+    #     ForeignKey("conversations.id", ondelete="CASCADE")
+    # )
 
     user_id = Column(
         UUID(as_uuid=True),
@@ -49,7 +49,7 @@ class Message(Base):
         default=lambda: datetime.now(UTC)
     )
 
-    conversation = relationship(
-        "Conversation",
-        back_populates="messages"
-    )
+    # conversation = relationship(
+    #     "Conversation",
+    #     back_populates="messages"
+    # )

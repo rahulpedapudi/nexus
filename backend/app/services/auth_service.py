@@ -1,11 +1,14 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from sqlalchemy import select, func
+import secrets
 
 from app.schemas.auth import LoginRequest, TokenResponse, SetupRequest
 from app.models.user import User
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
+
+from app.models.linktoken import TelegramLinkToken
 
 
 def is_setup_complete(db: Session) -> bool:
@@ -88,3 +91,41 @@ def refresh_tokens(refresh_token: str, db: Session):
         access_token=create_access_token(user.id),
         refresh_token=create_refresh_token(user.id),
     )
+
+
+def generate_link_token(
+    db: Session,
+    user: User
+):
+    token = secrets.token_urlsafe(32)
+
+    link = TelegramLinkToken(
+        token=token,
+        user_id=user.id,
+        expires_at=datetime.now(UTC) + timedelta(minutes=5)
+    )
+    db.add(link)
+    db.commit()
+
+    return token
+
+
+def link_telegram(token: str, telegram_id: str, db: Session):
+    link = db.query(TelegramLinkToken).filter(
+        TelegramLinkToken.token == token,
+        TelegramLinkToken.expires_at > datetime.now(UTC)
+    ).first()
+
+    if not link:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = db.query(User).filter(
+        User.id == link.user_id
+    ).first()
+
+    user.telegram_id = telegram_id
+
+    db.delete(link)
+    db.commit()
+
+    return {"message": "Successfully Linked telegram id"}

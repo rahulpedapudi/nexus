@@ -36,7 +36,7 @@ def create_refresh_token(user_id):
 
 def decode_token(token: str) -> dict[str, any]:
     try:
-        jwt.decode(token, settings.SECRET_KEY,
-                   algorithms=[settings.ALGORITHM])
+        return jwt.decode(token, settings.SECRET_KEY,
+                          algorithms=[settings.ALGORITHM])
     except JWTError:
         return None

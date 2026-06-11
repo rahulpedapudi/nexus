@@ -31,6 +31,11 @@ class User(Base):
         nullable=False
     )
 
+    telegram_id = Column(
+        String,
+        nullable=True
+    )
+
     last_login = Column(
         DateTime(timezone=True)
     )
