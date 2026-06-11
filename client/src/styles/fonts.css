@@ -1,0 +1,2 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Geist is not reliably available on Google Fonts without complex setups sometimes, so we'll fall back to Inter for display, or if standard 'Geist' font family is assumed to be available or added via Next/Vercel (we'll just map it). We'll use Inter as requested. */
