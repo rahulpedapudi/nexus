@@ -6,8 +6,7 @@ from app.db.database import Base, engine
 from telegram import Update
 from app.bot.telegram_handler import NexusBot
 
-from app.api.routes import auth, chat
-
+from app.api.routes import auth, chat, conversations
 
 load_dotenv()
 
@@ -38,6 +37,11 @@ app.include_router(
     tags=["chat"]
 )
 
+app.include_router(
+    router=conversations.router,
+    prefix="/conversations",
+    tags=["conversations"]  
+)
 
 @app.on_event("startup")
 async def startup():

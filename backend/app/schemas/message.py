@@ -8,15 +8,27 @@ class RoleEnum(str, Enum):
     assistant = "assistant"
 
 
+class SourceEnum(str, Enum):
+    web = "web"
+    telegram = "telegram"
+
 class MessageBase(BaseModel):
     content: str
     role: RoleEnum
+    source: SourceEnum
 
 
 class MessageCreate(BaseModel):
     content: str
+    source: SourceEnum
+    telegram_user_id: str | None = None
+    conv_id: str | None = None
+
 
 
 class MessageResponse(MessageBase):
     id: UUID4
+    conv_id: UUID4
+    user_id: UUID4
+    telegram_user_id: str | None = None     
     created_at: datetime

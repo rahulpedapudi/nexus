@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.services import auth_service
-from app.schemas.auth import LoginRequest, TokenResponse, SetupRequest
+from app.schemas.auth import LoginRequest, TokenResponse, SetupRequest, RefreshRequest
 from app.schemas.user import UserResponse
 from app.db.database import get_db
 
@@ -42,6 +42,14 @@ def link_telegram(token: str, telegram_id: str, db: Session = Depends(get_db)):
     return auth_service.link_telegram(token, telegram_id, db)
 
 
-@router.post("/refresh")
-def refresh():
-    pass
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(
+    data: RefreshRequest,
+    db: Session = Depends(get_db)
+):
+    return auth_service.refresh_tokens(data.refresh_token, db)
+
+
+@router.get("/me", response_model=UserResponse)
+def me(current_user: User = Depends(get_current_user)):
+    return current_user

@@ -27,7 +27,7 @@ def setup_user(data: SetupRequest, db: Session):
         email=data.email,
         username=data.username,
         hashed_pass=hash_password(data.password),
-        is_setup_complete=True
+        # is_setup_complete=True
     )
 
     db.add(user)
@@ -124,6 +124,7 @@ def link_telegram(token: str, telegram_id: str, db: Session):
     ).first()
 
     user.telegram_id = telegram_id
+    user.is_setup_complete = True
 
     db.delete(link)
     db.commit()

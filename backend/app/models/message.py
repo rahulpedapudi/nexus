@@ -1,3 +1,4 @@
+from sqlalchemy import String
 from app.db.database import Base
 from sqlalchemy import ForeignKey, Column, Enum, Text, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID
@@ -18,7 +19,7 @@ class Message(Base):
     __tablename__ = "messages"
 
     __table_args__ = (
-        # Index("idx_messages_conv_id", "conv_id"),
+        Index("idx_messages_conv_id", "conv_id"),
         Index("idx_messages_user_id", "user_id"),
     )
     id = Column(
@@ -27,14 +28,24 @@ class Message(Base):
         default=uuid.uuid4
     )
 
-    # conv_id = Column(
-    #     UUID(as_uuid=True),
-    #     ForeignKey("conversations.id", ondelete="CASCADE")
-    # )
+    conv_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="CASCADE")
+    )
 
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE")
+    )
+
+    telegram_user_id = Column(
+        String,
+        nullable=True
+    )
+
+    source = Column(
+        String,
+        default="web"
     )
 
     role = Column(
@@ -49,7 +60,7 @@ class Message(Base):
         default=lambda: datetime.now(UTC)
     )
 
-    # conversation = relationship(
-    #     "Conversation",
-    #     back_populates="messages"
-    # )
+    conversation = relationship(
+        "Conversation",
+        back_populates="messages"
+    )

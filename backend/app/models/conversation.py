@@ -26,10 +26,14 @@ class Conversation(Base):
         nullable=True,
     )
 
+    source = Column(String)
+
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC)
     )
+
+    updated_at = Column(DateTime(timezone=True), onupdate=lambda: datetime.now(UTC))
 
     messages = relationship(
         "Message",
