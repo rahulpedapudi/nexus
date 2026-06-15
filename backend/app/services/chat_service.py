@@ -1,3 +1,4 @@
+import asyncio
 import json
 from typing import AsyncGenerator
 
@@ -8,10 +9,11 @@ from fastapi import HTTPException
 from app.models.message import Message
 from app.models.conversation import Conversation
 from app.schemas.message import MessageCreate
-from app.services.llm_service import get_llm_response, stream_response
+from app.services.llm_service import stream_response
 from app.models.user import User
 from app.services.conversation_service import get_or_create_telegram_conversation, create_conversation
-
+from app.services import memory_service
+from app.services import memory_extractor
 
 # helper funcs
 
@@ -54,6 +56,15 @@ def _save_user_message(data: MessageCreate, conversation: Conversation, db: Sess
     db.refresh(msg)
     return msg
 
+def _retrieve_relevant_memories(db, user, query) -> str:
+    # 1. search_memories(data.content)
+    memories = memory_service.search_memories(db, user, query)   
+
+    # 2. format the retrieved memories
+    if not memories:
+        return "No relevant memories found."
+        
+    return "\n".join([f"- {m.content}" for m in memories])
 
 def _build_context(conversation: Conversation, db: Session, user: User) -> list[dict]:
     """Return the last 15 messages as a list of {role, content} dicts."""
@@ -89,16 +100,30 @@ def _save_assistant_message(
     return msg
 
 
+async def _extract_and_store(user: User, user_msg: str, assistant_msg: str, api_key: str, db: Session):
+
+    memories = memory_extractor.extract_memories(user_msg, assistant_msg, user, db, api_key)
+
+    for m in memories:
+        memory_service.store_memory(
+            content=m["content"],
+            category=m["category"],
+            source="auto",
+            db=db,
+            user=user
+        )
+
 # fallback use (no streaming)
 
-def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
-    """Blocking chat — full response in one shot."""
-    api_key = _get_api_key(db, current_user)
-    conversation = _get_conversation(data, db, current_user)
-    _save_user_message(data, conversation, db, current_user)
-    context = _build_context(conversation, db, current_user)
-    llm_text = get_llm_response(context, api_key)
-    return _save_assistant_message(llm_text, conversation, data, db, current_user)
+# def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
+#     """Blocking chat — full response in one shot."""
+#     api_key = _get_api_key(db, current_user)
+#     conversation = _get_conversation(data, db, current_user)
+#     _save_user_message(data, conversation, db, current_user)
+#     memories = _retrieve_relevant_memories(db, current_user, data.content)
+#     context = _build_context(conversation, db, current_user)
+#     llm_text = get_llm_response(context, api_key)
+#     return _save_assistant_message(llm_text, conversation, data, db, current_user)
 
 
 #  streaming pipeline
@@ -121,9 +146,19 @@ async def stream_events(
     """
     # ── DB setup (sync, completes before any yield) ───────────────────────────
     try:
+        # gets user's groq api key
         api_key = _get_api_key(db, current_user)
+
+        # gets conversation - single conv_id if source is telegram, else auto-create a new conversation if no data.conv_id supplied
         conversation = _get_conversation(data, db, current_user)
+        
+        # saves user message
         _save_user_message(data, conversation, db, current_user)
+
+        # TODO: need to retrieve relevant memories related to the query
+        memories = _retrieve_relevant_memories(db, current_user, data.content)
+        
+        # gets latest 15 messages for passing it as a context for the llm
         context = _build_context(conversation, db, current_user)
     except HTTPException as exc:
         yield {"type": "error", "detail": exc.detail}
@@ -135,7 +170,7 @@ async def stream_events(
     # ── Stream from LLM ───────────────────────────────────────────────────────
     accumulated: list[str] = []
 
-    async for event in stream_response(context, api_key):
+    async for event in stream_response(context, memories, api_key):
         event_type = event["type"]
 
         if event_type == "status":
@@ -153,12 +188,19 @@ async def stream_events(
     full_response = "".join(accumulated)
     try:
         saved = _save_assistant_message(full_response, conversation, data, db, current_user)
+
+        # extract memories & store in db (in background, don't wait for it)
+        asyncio.create_task(
+            _extract_and_store(current_user, data.content, full_response, api_key, db)
+        )
+
         yield {
             "type": "done",
             "message_id": str(saved.id),
             "conv_id": str(saved.conv_id),
             "full_text": full_response,
         }
+        
     except Exception as exc:
         yield {"type": "error", "detail": "Failed to persist message: " + str(exc)}
 

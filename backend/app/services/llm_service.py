@@ -1,7 +1,9 @@
+from app.core.config import settings
 import os
 from typing import AsyncGenerator
-from groq import AsyncGroq, Groq
+from groq import AsyncGroq
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -22,27 +24,32 @@ You are Nexus, a personal AI assistant. You live in Telegram and help the user m
 - If asked to do something outside your capabilities, say what you can't do and stop there.
 - Keep the user's data private. Never reference other users or external data.
 
-"""
+## What you remember about the user
+{memory_context}
 
-MODEL = "llama-3.3-70b-versatile"
+## Current context
+Date: {current_datetime}
+
+"""
 
 
 # ── Synchronous (used by Telegram bot) ───────────────────────────────────────
 
-def get_llm_response(recent_messages: list[dict], api_key: str) -> str:
-    """Blocking call — returns the full response text. Used by the Telegram bot."""
-    client = Groq(api_key=api_key)
-    chat_completion = client.chat.completions.create(
-        messages=[{"role": "system", "content": SYSTEM_PROMPT}, *recent_messages],
-        model=MODEL,
-    )
-    return chat_completion.choices[0].message.content
+# def get_llm_response(recent_messages: list[dict], api_key: str) -> str:
+#     """Blocking call — returns the full response text. Used by the Telegram bot."""
+#     client = Groq(api_key=api_key)
+#     chat_completion = client.chat.completions.create(
+#         messages=[{"role": "system", "content": SYSTEM_PROMPT}, *recent_messages],
+#         model="openai/gpt-oss-120b",
+#     )
+#     return chat_completion.choices[0].message.content
 
 
 # ── Async streaming (used by the web /chat/stream endpoint) ──────────────────
 
 async def stream_response(
     recent_messages: list[dict],
+    memories: str,
     api_key: str,
 ) -> AsyncGenerator[dict, None]:
     """
@@ -60,8 +67,11 @@ async def stream_response(
 
     try:
         stream = await client.chat.completions.create(
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}, *recent_messages],
-            model=MODEL,
+            messages=[{"role": "system", "content": SYSTEM_PROMPT.format(
+                memory_context=memories,
+                current_datetime=datetime.now().strftime("%A, %d %B %Y %I:%M %p")
+            )}, *recent_messages],
+            model=settings.MODEL,
             stream=True,
         )
 

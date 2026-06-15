@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "Nexus"
     VERSION: str = "0.1.0"
 
+    MODEL: str = "openai/gpt-oss-120b"
+    EMBEDDING_MODEL: str = "gemini-embedding-2"
+
     # auth settings
     SECRET_KEY: str = JWT_SECRET
 

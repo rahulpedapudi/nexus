@@ -64,7 +64,7 @@ def tokens_to_mdv2(tokens: list[Token]) -> str:
         elif tok.type == 'list_item_close':
             result.append('\n')
         elif tok.type == 'paragraph_close':
-            result.append('\n\n')
+            result.append('\n')
 
         elif tok.type == 'blockquote_open':
             result.append('>')
@@ -219,7 +219,7 @@ class NexusBot:
                         await bot.send_message_draft(
                             chat_id=chat_id,
                             draft_id=draft_id,
-                            text=accumulated + " ▍",
+                            text=accumulated + "▍",
                         )
                         last_draft_time = now
                         last_draft_len = len(accumulated)
