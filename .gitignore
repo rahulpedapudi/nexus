@@ -78,7 +78,7 @@ pip-delete-this-directory.txt
 .env.*.local
 *.secret
 *.pem
-
+TODO.md
 
 # ==========================================
 # IDEs and OS Junk

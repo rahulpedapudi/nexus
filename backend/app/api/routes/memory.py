@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.schemas.user import User
+from app.models.user import User
 from app.core.dependencies import get_current_user
 from app.schemas.memory import MemoryResponse
 from app.services import memory_service
@@ -16,14 +16,29 @@ def list_all_memories(
 ):
     return memory_service.list_all_memories(db, user)
 
-@router.post("/create")
-def add_memory():
-    pass
+@router.post("/create", response_model=MemoryResponse)
+def add_memory(
+    content: str,
+    category: str,
+    source: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return memory_service.store_memory(content, category, source, db, user)
 
 @router.put("/{memory_id}")
-def update_memory():
-    pass
+def update_memory(
+    memory_id: str, 
+    new_content: str, 
+    db: Session = Depends(get_db), 
+    user: User = Depends(get_current_user)
+):
+    return memory_service.update_memory(memory_id, new_content, db, user)
 
 @router.delete("/{memory_id}")
-def delete_memory():
-    pass                            
+def delete_memory(
+    memory_id: str, 
+    db: Session = Depends(get_db), 
+    user: User = Depends(get_current_user)
+):
+    return memory_service.delete_memory(memory_id, db, user)                            

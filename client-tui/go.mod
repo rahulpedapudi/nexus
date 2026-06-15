@@ -3,13 +3,16 @@ module nexus
 go 1.26.4
 
 require (
-	charm.land/bubbletea/v2 v2.0.7 // indirect
+	charm.land/bubbletea/v2 v2.0.7
 	charm.land/huh/v2 v2.0.3
 )
 
 require (
-	charm.land/bubbles/v2 v2.0.0 // indirect
-	charm.land/lipgloss/v2 v2.0.1 // indirect
+	charm.land/bubbles/v2 v2.0.0
+	charm.land/lipgloss/v2 v2.0.1
+)
+
+require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect

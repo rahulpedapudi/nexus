@@ -6,7 +6,7 @@ from app.db.database import Base, engine
 from telegram import Update
 from app.bot.telegram_handler import NexusBot
 
-from app.api.routes import auth, chat, conversations, keys
+from app.api.routes import auth, chat, conversations, keys, memory
 
 
 load_dotenv()
@@ -48,6 +48,12 @@ app.include_router(
     router=keys.router,
     prefix="/keys",
     tags=["keys"]  
+)
+
+app.include_router(
+    router=memory.router,
+    prefix="/memory",
+    tags=["memory"]
 )
 
 @app.on_event("startup")
