@@ -6,6 +6,8 @@ import { Dashboard } from "./pages/Dashboard";
 import { Integrations } from "./pages/Integrations";
 import { Memory } from "./pages/Memory";
 import { Account } from "./pages/Account";
+import { Chat } from "./pages/Chat";
+import { ChatThread } from "./pages/ChatThread";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -35,6 +37,14 @@ export const router = createBrowserRouter([
         Component: Layout,
         children: [
           { path: "dashboard", Component: Dashboard },
+          {
+            path: "chat",
+            Component: Chat,
+            children: [
+              { index: true, Component: ChatThread },
+              { path: ":convId", Component: ChatThread },
+            ],
+          },
           { path: "integrations", Component: Integrations },
           { path: "memory", Component: Memory },
           { path: "account", Component: Account },

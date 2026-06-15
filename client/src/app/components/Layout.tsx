@@ -1,14 +1,11 @@
-import { ReactNode } from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { motion } from "motion/react";
 import {
   Home,
   Layers,
   BrainCircuit,
   User as UserIcon,
-  Settings,
+  MessageSquare,
 } from "lucide-react";
-import { useStore } from "../store";
 import { useMe } from "../../hooks/useMe";
 
 const SidebarItem = ({
@@ -46,6 +43,8 @@ const SidebarItem = ({
 
 export const Layout = () => {
   const { data: user } = useMe();
+  const location = useLocation();
+  const isChat = location.pathname.startsWith("/chat");
 
   // User hasn't linked Telegram → send to onboarding
   if (user && !user.is_setup_complete) {
@@ -67,6 +66,7 @@ export const Layout = () => {
           </div>
           <nav className="flex flex-col gap-1">
             <SidebarItem to="/dashboard" icon={Home} label="Dashboard" />
+            <SidebarItem to="/chat" icon={MessageSquare} label="Chat" />
             <SidebarItem
               to="/integrations"
               icon={Layers}
@@ -92,9 +92,13 @@ export const Layout = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto relative bg-background">
-        <div className="max-w-5xl mx-auto p-8 lg:p-12">
+        {isChat ? (
           <Outlet />
-        </div>
+        ) : (
+          <div className="max-w-5xl mx-auto p-8 lg:p-12">
+            <Outlet />
+          </div>
+        )}
       </main>
     </div>
   );
