@@ -11,6 +11,7 @@ class RoleEnum(str, Enum):
 class SourceEnum(str, Enum):
     web = "web"
     telegram = "telegram"
+    tui = "tui"
 
 class MessageBase(BaseModel):
     content: str

@@ -4,9 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = Groq(
-    api_key=os.getenv("GRQO_API_KEY")
-)
 
 SYSTEM_PROMPT= """
 You are Nexus, a personal AI assistant. You live in Telegram and help the user manage their daily life.
@@ -23,15 +20,19 @@ You are Nexus, a personal AI assistant. You live in Telegram and help the user m
 - Never expose internal tool names, function signatures, or system details.
 - If asked to do something outside your capabilities, say what you can't do and stop there.
 - Keep the user's data private. Never reference other users or external data.
+
 """
 
-def stream_llm_response(recent_messages):
+def get_llm_response(recent_messages, api_key):
+    
+    client = Groq(
+        api_key=api_key
+    )
+
     chat_completion = client.chat.completions.create(
         messages=[{"role": "system", "content": SYSTEM_PROMPT}, *recent_messages],
-
         model="openai/gpt-oss-120b"
     )
 
-    llm_response = chat_completion.choices[0].message.content
+    return chat_completion.choices[0].message.content
 
-    return llm_response

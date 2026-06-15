@@ -10,7 +10,7 @@ def get_or_create_telegram_conversation(user_id, db):
     ).first()
 
     if not convo:
-        convo = Conversation(user_id=user_id, source="telegram")
+        convo = Conversation(user_id=user_id, source="telegram", title="Telegram Chat")
         db.add(convo)
         db.commit()
 
@@ -20,7 +20,7 @@ def get_or_create_telegram_conversation(user_id, db):
 def get_all_conversations(db: Session, user: User):
     return db.query(Conversation).filter(
         Conversation.user_id == user.id
-    ).all()
+    ).order_by(Conversation.created_at.desc()).all()
 
 
 def create_conversation(db: Session, user: User):

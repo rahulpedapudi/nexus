@@ -1,3 +1,5 @@
+from app.services import keys_service
+from app.models import keys
 from fastapi import Depends, Security, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -35,3 +37,9 @@ def get_current_user(
         )
 
     return user
+
+def get_api_key(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> str:
+    return keys_service.get_key(db, current_user)

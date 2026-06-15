@@ -5,7 +5,7 @@ from app.schemas.message import MessageCreate, MessageResponse
 from app.db.database import get_db
 from app.services import chat_service
 from app.models.user import User
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_api_key
 
 router = APIRouter()
 
@@ -14,6 +14,6 @@ router = APIRouter()
 def chat(
     data: MessageCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)          
-):
+    current_user: User = Depends(get_current_user)
+):    
     return chat_service.chat(data, db, current_user)

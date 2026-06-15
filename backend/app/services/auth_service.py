@@ -40,7 +40,7 @@ def setup_user(data: SetupRequest, db: Session):
 def login(data: LoginRequest, db: Session):
     user = db.query(User).filter(
         User.username == data.username
-    ).one()
+    ).first()
 
     if not user or not verify_password(data.password, user.hashed_pass):
         raise HTTPException(

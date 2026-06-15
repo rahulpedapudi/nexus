@@ -6,7 +6,8 @@ from app.db.database import Base, engine
 from telegram import Update
 from app.bot.telegram_handler import NexusBot
 
-from app.api.routes import auth, chat, conversations
+from app.api.routes import auth, chat, conversations, keys
+
 
 load_dotenv()
 
@@ -43,6 +44,12 @@ app.include_router(
     tags=["conversations"]  
 )
 
+app.include_router(
+    router=keys.router,
+    prefix="/keys",
+    tags=["keys"]  
+)
+
 @app.on_event("startup")
 async def startup():
     # set webhook on startup (production)
@@ -68,3 +75,7 @@ async def telegram_webhook(request: Request):
 @app.head("/")
 def test():
     return Response(status_code=200)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

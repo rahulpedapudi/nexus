@@ -1,3 +1,4 @@
+from app.services import keys_service
 import os
 from groq import Groq
 from sqlalchemy.orm import Session
@@ -7,19 +8,18 @@ from dotenv import load_dotenv
 from app.models.message import Message
 from app.models.conversation import Conversation
 from app.schemas.message import MessageCreate
-from app.services.llm_service import stream_llm_response
+from app.services.llm_service import get_llm_response
 from app.models.user import User
 
 from app.services.conversation_service import get_or_create_telegram_conversation
 
-load_dotenv()
-
-client = Groq(
-    api_key=os.getenv("GRQO_API_KEY")
-)
-
 
 def chat(data: MessageCreate, db: Session, current_user: User ):
+
+    api_key = keys_service.get_key(db, current_user, provider="groq")
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Invalid API Key")
 
     # single convo for telegram per user
     if data.source == "telegram":
@@ -63,7 +63,7 @@ def chat(data: MessageCreate, db: Session, current_user: User ):
         for msg in recent_messages
     ]
 
-    llm_response = stream_llm_response(formatted_msgs)
+    llm_response = get_llm_response(formatted_msgs, api_key)
 
     llm_message = Message(
         content=llm_response,

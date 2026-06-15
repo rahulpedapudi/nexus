@@ -14,7 +14,7 @@ class ConversationBase(BaseModel):
 
 class ConversationResponse(BaseModel):
     id: UUID4
-    title: str
+    title: str | None = None
     created_at: datetime
     user_id: UUID4
     source: SourceEnum
