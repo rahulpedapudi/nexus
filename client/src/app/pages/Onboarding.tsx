@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Switch } from "../components/ui/Switch";
-import { useStore } from "../store";
 import {
   Check,
   Copy,
@@ -20,21 +20,29 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../api/client";
+import { useCreateKey } from "../../hooks/useKey";
 
 export const Onboarding = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
-  const setHasOnboarded = useStore((state) => state.setHasOnboarded);
+  const queryClient = useQueryClient();
 
   // step 1
   const [token, setToken] = useState<string | undefined | null>(null);
 
   // Step 2 State
-  const [llmType, setLlmType] = useState<"local" | "cloud">("cloud");
-  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
-  const [cloudProvider, setCloudProvider] = useState<"openai" | "groq">(
-    "openai",
-  );
+  // const [llmType, setLlmType] = useState<"cloud">("cloud");
+  // const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
+  const [cloudProvider, setCloudProvider] = useState<"groq">("groq");
+
+  const {
+    mutateAsync: createKey,
+    isPending: isCreatingKey,
+    isSuccess,
+    isError,
+    error,
+  } = useCreateKey();
+
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -73,8 +81,11 @@ export const Onboarding = () => {
     }, 1000);
   };
 
-  const finishOnboarding = () => {
-    setHasOnboarded(true);
+  const finishOnboarding = async () => {
+    // Invalidate the /me cache so ProtectedRoute re-checks is_setup_complete
+    // from the backend. The redirect to /dashboard is handled by ProtectedRoute
+    // once it sees is_setup_complete === true.
+    await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     navigate("/dashboard");
   };
 
@@ -133,7 +144,7 @@ export const Onboarding = () => {
                     <p className="text-sm text-muted-foreground">
                       Send this command to the Nexus bot:
                     </p>
-                    <div className="flex items-center justify-between w-full max-w-sm bg-background border border-border rounded-lg p-3">
+                    <div className="flex items-center justify-between w-full p-6 bg-background border border-border rounded-lg">
                       <code className="font-mono text-primary font-medium tracking-wider">
                         /link {token}
                       </code>
@@ -177,110 +188,60 @@ export const Onboarding = () => {
               <div className="grid grid-cols-2 gap-4">
                 <Card
                   hoverable
-                  className={`p-6 cursor-pointer transition-colors ${llmType === "local" ? "border-primary bg-primary/5" : ""}`}
-                  onClick={() => setLlmType("local")}>
+                  className={`p-6 cursor-pointer transition-colors ${cloudProvider === "groq" ? "border-primary bg-primary/5" : ""}`}
+                  onClick={() => setCloudProvider("groq")}>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium">Local (Ollama)</h3>
-                    <div
-                      className={`w-4 h-4 rounded-full border ${llmType === "local" ? "border-primary bg-primary" : "border-muted-foreground"}`}
-                    />
+                    <h3 className="font-medium">Groq</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Run models on your own hardware. Maximum privacy.
+                    Fastest responses
                   </p>
                 </Card>
                 <Card
-                  hoverable
-                  className={`p-6 cursor-pointer transition-colors ${llmType === "cloud" ? "border-primary bg-primary/5" : ""}`}
-                  onClick={() => setLlmType("cloud")}>
+                  hoverable={false}
+                  className={`p-6 cursor-pointer transition-colors text-muted-foreground`}>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium">Cloud</h3>
-                    <div
-                      className={`w-4 h-4 rounded-full border ${llmType === "cloud" ? "border-primary bg-primary" : "border-muted-foreground"}`}
-                    />
+                    <h3 className="font-medium">More Coming Soon!</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Fastest responses. Hosted by OpenAI or Groq.
+                    Open Source Models
                   </p>
                 </Card>
               </div>
 
               <AnimatePresence mode="popLayout">
-                {llmType === "local" ? (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        Ollama Base URL
-                      </label>
+                (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-4">
+                  <div className="space-y-2 relative">
+                    <label className="text-sm font-medium">API Key</label>
+                    <div className="relative">
                       <Input
-                        value={ollamaUrl}
-                        onChange={(e) => setOllamaUrl(e.target.value)}
+                        type={showApiKey ? "text" : "password"}
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="gsk_..."
+                        className="p-6 mt-3"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        {showApiKey ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Model Name</label>
-                      <select className="flex h-10 w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                        <option>llama3</option>
-                        <option>mistral</option>
-                        <option>phi3</option>
-                      </select>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-4">
-                    <div className="flex gap-4">
-                      <Button
-                        variant={
-                          cloudProvider === "openai" ? "primary" : "secondary"
-                        }
-                        className="flex-1"
-                        onClick={() => setCloudProvider("openai")}>
-                        OpenAI
-                      </Button>
-                      <Button
-                        variant={
-                          cloudProvider === "groq" ? "primary" : "secondary"
-                        }
-                        className="flex-1"
-                        onClick={() => setCloudProvider("groq")}>
-                        Groq
-                      </Button>
-                    </div>
-                    <div className="space-y-2 relative">
-                      <label className="text-sm font-medium">API Key</label>
-                      <div className="relative">
-                        <Input
-                          type={showApiKey ? "text" : "password"}
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder="sk-..."
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showApiKey ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
+                  </div>
+                </motion.div>
               </AnimatePresence>
 
-              <div className="flex items-center justify-between pt-4">
+              {/* <div className="flex items-center justify-between pt-4">
                 <Button
                   variant="outline"
                   onClick={testConnection}
@@ -292,10 +253,16 @@ export const Onboarding = () => {
                     <Check className="w-4 h-4" /> Connection successful
                   </span>
                 )}
-              </div>
+              </div> */}
 
               <div className="flex justify-end pt-8">
-                <Button onClick={() => setStep(3)} size="lg">
+                <Button
+                  onClick={() => {
+                    createKey({ key: apiKey, provider: cloudProvider });
+                    setStep(3);
+                  }}
+                  disabled={!apiKey}
+                  size="lg">
                   Continue
                 </Button>
               </div>
