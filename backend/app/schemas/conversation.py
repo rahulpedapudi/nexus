@@ -6,6 +6,7 @@ from enum import Enum
 class SourceEnum(str, Enum):
     web = "web"
     telegram = "telegram"
+    discord = "discord"
 
 
 class ConversationBase(BaseModel):

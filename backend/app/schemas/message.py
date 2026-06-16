@@ -11,6 +11,7 @@ class RoleEnum(str, Enum):
 class SourceEnum(str, Enum):
     web = "web"
     telegram = "telegram"
+    discord = "discord"
     tui = "tui"
 
 class MessageBase(BaseModel):
@@ -23,6 +24,7 @@ class MessageCreate(BaseModel):
     content: str
     source: SourceEnum
     telegram_user_id: str | None = None
+    discord_user_id: str | None = None
     conv_id: str | None = None
 
 

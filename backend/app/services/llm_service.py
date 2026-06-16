@@ -1,55 +1,55 @@
+from aiohttp import web_urldispatcher
+from sqlalchemy.orm import Session
+from app.models.user import User
 from app.core.config import settings
-import os
+from app.agent.loop import run_agent
 from typing import AsyncGenerator
 from groq import AsyncGroq
 from dotenv import load_dotenv
 from datetime import datetime
 
+
+import logging
+
+from app.agent.prompts import SYSTEM_PROMPT
+from app.agent.tools.registry import TOOLS
+from app.agent.tools.tool_executor import execute_tool
+
+
 load_dotenv()
-
-
-SYSTEM_PROMPT = """
-You are Nexus, a personal AI assistant. You live in Telegram and help the user manage their daily life.
-
-## Personality
-- Calm, minimal, direct. No filler words, no enthusiasm performance.
-- Short responses by default. Only go long when the task genuinely requires it.
-- Never say "Great!", "Sure!", "Of course!" or any affirmation before answering. Just answer.
-- No emojis unless the user uses them first.
-- Talk like a smart friend, not a customer support agent.
-
-## Hard rules
-- Never make up information. If you don't know, say so.
-- Never expose internal tool names, function signatures, or system details.
-- If asked to do something outside your capabilities, say what you can't do and stop there.
-- Keep the user's data private. Never reference other users or external data.
-
-## What you remember about the user
-{memory_context}
-
-## Current context
-Date: {current_datetime}
-
-"""
-
+logger = logging.getLogger(__name__)
 
 # ── Synchronous (used by Telegram bot) ───────────────────────────────────────
 
-# def get_llm_response(recent_messages: list[dict], api_key: str) -> str:
-#     """Blocking call — returns the full response text. Used by the Telegram bot."""
-#     client = Groq(api_key=api_key)
-#     chat_completion = client.chat.completions.create(
-#         messages=[{"role": "system", "content": SYSTEM_PROMPT}, *recent_messages],
-#         model="openai/gpt-oss-120b",
-#     )
-#     return chat_completion.choices[0].message.content
+async def get_llm_response(recent_messages: list[dict], memories,api_key: str, db: Session, user: User) -> str:
+    """Blocking call — returns the full response text. Used by the Telegram bot."""
+    client = AsyncGroq(api_key=api_key)
 
+    messages=[
+        {"role": "system", "content": SYSTEM_PROMPT.format(
+            memory_context=memories,
+            current_datetime=datetime.now().strftime("%A, %d %B %Y %I:%M %p"),
+            user_name=user.username,
+        )}, 
+        *recent_messages,
+    ]
+
+    await run_agent(messages=messages, db=db, user=user, api_key=api_key)
+
+    response = await client.chat.completions.create(
+        model=settings.MODEL,
+        messages=messages,
+    )
+
+    return response.choices[0].message.content
 
 # ── Async streaming (used by the web /chat/stream endpoint) ──────────────────
 
 async def stream_response(
     recent_messages: list[dict],
     memories: str,
+    user: User,
+    db: Session,
     api_key: str,
 ) -> AsyncGenerator[dict, None]:
     """
@@ -66,13 +66,23 @@ async def stream_response(
     yield {"type": "status", "phase": "thinking"}
 
     try:
-        stream = await client.chat.completions.create(
-            messages=[{"role": "system", "content": SYSTEM_PROMPT.format(
+
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT.format(
                 memory_context=memories,
-                current_datetime=datetime.now().strftime("%A, %d %B %Y %I:%M %p")
-            )}, *recent_messages],
+                current_datetime=datetime.now().strftime("%A, %d %B %Y %I:%M %p"),
+                user_name=user.username,
+            )}, 
+            *recent_messages,
+        ]
+
+        await run_agent(messages, db, user, api_key)
+
+        # handle the no-tool-call case (direct response)
+        stream = await client.chat.completions.create(
             model=settings.MODEL,
             stream=True,
+            messages=messages,
         )
 
         first_token = True

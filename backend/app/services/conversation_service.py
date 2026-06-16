@@ -3,16 +3,17 @@ from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.message import Message
 
-def get_or_create_telegram_conversation(user_id, db):
+def get_or_create_bot_conversation(source, user_id, db):
     convo = db.query(Conversation).filter(
         Conversation.user_id == user_id,
-        Conversation.source == "telegram"
+        Conversation.source == source
     ).first()
 
     if not convo:
-        convo = Conversation(user_id=user_id, source="telegram", title="Telegram Chat")
+        convo = Conversation(user_id=user_id, source=source, title=f"{source.capitalize()} Chat")
         db.add(convo)
         db.commit()
+        db.refresh(convo)
 
     return convo
 

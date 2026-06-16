@@ -1,6 +1,7 @@
 from app.db.database import Base
 from sqlalchemy import Column, DateTime, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from datetime import datetime, UTC
 import uuid
 
@@ -54,3 +55,5 @@ class User(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC)
     )
+
+    identities = relationship("PlatformIdentity", back_populates="user")

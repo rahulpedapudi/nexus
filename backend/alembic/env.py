@@ -12,6 +12,8 @@ from app.models.message import Message
 from app.models.linktoken import TelegramLinkToken
 from app.models.keys import Keys    
 from app.models.memory import Memory
+from app.models.platform_tokens import PlatformToken
+from app.models.platform_identities import PlatformIdentity
 
 
 

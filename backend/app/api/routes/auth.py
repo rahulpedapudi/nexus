@@ -42,6 +42,27 @@ def link_telegram(token: str, telegram_id: str, db: Session = Depends(get_db)):
     return auth_service.link_telegram(token, telegram_id, db)
 
 
+@router.post("/get-token")
+def get_token(
+    platform: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    token = auth_service.get_token(platform,db, current_user)
+    return {"token": token}
+
+
+@router.post("/link")
+def link_platform(
+    token: str,
+    platform: str,
+    platform_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return auth_service.link_platform(token, platform, platform_id, db, current_user)
+
+
 @router.post("/refresh", response_model=TokenResponse)
 def refresh(
     data: RefreshRequest,

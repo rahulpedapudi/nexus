@@ -6,39 +6,8 @@ import json
 
 from app.core.config import settings
 
+from app.agent.prompts import EXTRACTION_PROMPT
 
-EXTRACTION_PROMPT = """
-    You are a memory extraction system. Given a conversation exchange, extract facts worth remembering about the user long-term.
-    Rules:
-    - Only extract persistent facts — preferences, habits, recurring patterns, personal details
-    - Ignore one-off requests, questions, or temporary context
-    - Each memory should be a single clear sentence starting with "User"
-    - Return JSON array of objects: [{"content": "...", "category": "preference|fact|pattern|habit"}]
-    - Return empty array [] if nothing worth remembering
-    - Never extract sensitive data like passwords or payment details
-
-    Examples of good memories:
-    - "User is vegetarian"
-    - "User prefers morning reminders"
-    - "User's rent is due on the 1st of every month"
-    - "User tracks expenses in INR"
-
-    Examples of bad memories (don't extract):
-    - "User asked what the weather is"
-    - "User said okay"
-    - "User wants a reminder for today"
-
-    Conversation:
-    User: "What is the weather?"
-    Assistant: "It is sunny today"
-    Extract Memories:
-    []
-
-    User: "I am going to the gym at 5pm"
-    Assistant: "Got it"
-    Extract Memories:
-    [{"content": "User goes to the gym at 5pm", "category": "habit"}]
-"""
 
 def extract_memories(user_msg: str, assistant_msg: str, user: User, db: Session, api_key: str):
     

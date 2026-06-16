@@ -11,10 +11,11 @@ from app.models.conversation import Conversation
 from app.schemas.message import MessageCreate
 from app.services.llm_service import stream_response
 from app.models.user import User
-from app.services.conversation_service import get_or_create_telegram_conversation, create_conversation
+from app.services.conversation_service import get_or_create_bot_conversation, create_conversation
 from app.services import memory_service
 from app.services import memory_extractor
 
+from app.services import llm_service
 # helper funcs
 
 def _get_api_key(db: Session, user: User) -> str:
@@ -27,7 +28,10 @@ def _get_api_key(db: Session, user: User) -> str:
 
 def _get_conversation(data: MessageCreate, db: Session, user: User) -> Conversation:
     if data.source == "telegram":
-        return get_or_create_telegram_conversation(user.id, db)
+        return get_or_create_bot_conversation("telegram", user.id, db)
+    
+    if data.source == "discord":
+        return get_or_create_bot_conversation("discord", user.id, db)
 
     # Web: auto-create a new conversation if no conv_id supplied
     if not data.conv_id:
@@ -56,6 +60,9 @@ def _save_user_message(data: MessageCreate, conversation: Conversation, db: Sess
     db.refresh(msg)
     return msg
 
+#! this adds latency
+#! i already implemented search_memories tool for the llm to use; and also recent messages are passed as a context; so this is may not be needed;
+ 
 def _retrieve_relevant_memories(db, user, query) -> str:
     # 1. search_memories(data.content)
     memories = memory_service.search_memories(db, user, query)   
@@ -79,7 +86,7 @@ def _build_context(conversation: Conversation, db: Session, user: User) -> list[
     return [{"role": m.role, "content": m.content} for m in reversed(recent)]
 
 
-def _save_assistant_message(
+async def _save_assistant_message(
     content: str,
     conversation: Conversation,
     data: MessageCreate,
@@ -115,16 +122,26 @@ async def _extract_and_store(user: User, user_msg: str, assistant_msg: str, api_
 
 # fallback use (no streaming)
 
-# def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
-#     """Blocking chat — full response in one shot."""
-#     api_key = _get_api_key(db, current_user)
-#     conversation = _get_conversation(data, db, current_user)
-#     _save_user_message(data, conversation, db, current_user)
-#     memories = _retrieve_relevant_memories(db, current_user, data.content)
-#     context = _build_context(conversation, db, current_user)
-#     llm_text = get_llm_response(context, api_key)
-#     return _save_assistant_message(llm_text, conversation, data, db, current_user)
+#! USED BY DISCORD
+async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
+    """Blocking chat — full response in one shot."""
+    api_key = _get_api_key(db, current_user)
+    conversation = _get_conversation(data, db, current_user)
+    _save_user_message(data, conversation, db, current_user)
+    memories = _retrieve_relevant_memories(db, current_user, data.content)
+    context = _build_context(conversation, db, current_user)
 
+    llm_text = await llm_service.get_llm_response(recent_messages=context, memories=memories, api_key=api_key, db=db, user=current_user)
+    
+    asyncio.create_task(
+        _save_assistant_message(content=llm_text, conversation=conversation, data=data, db=db, user=current_user)
+    )
+
+    asyncio.create_task(
+        _extract_and_store(user=current_user, user_msg=data.content, assistant_msg=llm_text, api_key=api_key, db=db)
+    )
+
+    return llm_text
 
 #  streaming pipeline
 
@@ -170,7 +187,7 @@ async def stream_events(
     # ── Stream from LLM ───────────────────────────────────────────────────────
     accumulated: list[str] = []
 
-    async for event in stream_response(context, memories, api_key):
+    async for event in stream_response(context, memories, user=current_user, api_key=api_key, db=db):
         event_type = event["type"]
 
         if event_type == "status":
@@ -187,7 +204,7 @@ async def stream_events(
     # ── Persist and signal done ───────────────────────────────────────────────
     full_response = "".join(accumulated)
     try:
-        saved = _save_assistant_message(full_response, conversation, data, db, current_user)
+        saved = await _save_assistant_message(full_response, conversation, data, db, current_user)
 
         # extract memories & store in db (in background, don't wait for it)
         asyncio.create_task(

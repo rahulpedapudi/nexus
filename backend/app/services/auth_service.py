@@ -9,7 +9,10 @@ from app.models.user import User
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
 
 from app.models.linktoken import TelegramLinkToken
+from app.schemas.platform_tokens import PlatformTokenResponse
+from app.models.platform_tokens import PlatformToken
 
+from app.models.platform_identities import PlatformIdentity
 
 def is_setup_complete(db: Session) -> bool:
     result = db.scalar(select(func.count()).select_from(User))
@@ -92,7 +95,7 @@ def refresh_tokens(refresh_token: str, db: Session):
         refresh_token=create_refresh_token(user.id),
     )
 
-
+#! deprecated
 def generate_link_token(
     db: Session,
     user: User
@@ -109,7 +112,7 @@ def generate_link_token(
 
     return token
 
-
+#! deprecated
 def link_telegram(token: str, telegram_id: str, db: Session):
     link = db.query(TelegramLinkToken).filter(
         TelegramLinkToken.token == token,
@@ -130,3 +133,48 @@ def link_telegram(token: str, telegram_id: str, db: Session):
     db.commit()
 
     return {"message": "Successfully Linked telegram id"}
+
+def get_token(platform: str, db: Session, user: User):
+    token = secrets.token_urlsafe(32)
+    
+    platform_token = PlatformToken(
+        token=token,
+        user_id=user.id,
+        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+        platform=platform
+    )
+    db.add(platform_token)
+    db.commit()
+    db.refresh(platform_token)
+
+    return token
+
+
+def link_platform(token: str, platform: str, platform_id: str, db: Session):
+    platform_token = db.query(PlatformToken).filter(
+        PlatformToken.token == token,
+        PlatformToken.expires_at > datetime.now(UTC),
+        PlatformToken.platform == platform
+    ).first()
+
+    if not platform_token:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = db.query(User).filter(
+        User.id == platform_token.user_id
+    ).first()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=400, detail="User not found")
+
+    platform_identity = PlatformIdentity(
+        user_id=user.id,
+        platform=platform,
+        platform_id=platform_id
+    )
+    db.add(platform_identity)
+    db.delete(platform_token)
+    db.commit()
+    db.refresh(platform_identity)
+
+    return {"message": "Successfully Linked platform"}

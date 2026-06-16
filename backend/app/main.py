@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+import asyncio
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, Request
@@ -5,14 +7,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Base, engine
 from telegram import Update
 from app.bot.telegram_handler import NexusBot
-
+from app.bot.discord_handler import DiscordBot
+from app.core.logging import setup_logging
 from app.api.routes import auth, chat, conversations, keys, memory
 
-
 load_dotenv()
+setup_logging()
 
-app = FastAPI()
+
 bot = NexusBot(token=os.getenv("TELEGRAM_TOKEN"))
+discord_bot = DiscordBot(token=os.getenv("DISCORD_TOKEN"))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    discord_task = asyncio.create_task(discord_bot.start())
+    # webhook_url = os.getenv("WEBHOOK_URL")
+    # if webhook_url:
+    #     await bot.app.bot.set_webhook(url=f"{webhook_url}/webhook")
+    # else:
+    #     # local dev — start polling in background
+    #     await bot.app.initialize()
+    #     await bot.app.start()
+    #     await bot.app.updater.start_polling()
+    yield
+    await discord_bot.stop()
+    discord_task.cancel()
+    # await bot.app.updater.stop()
+    # await bot.app.stop()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,26 +81,13 @@ app.include_router(
     tags=["memory"]
 )
 
-@app.on_event("startup")
-async def startup():
-    # set webhook on startup (production)
-    # e.g. https://nexus.yourdomain.com/webhook
-    webhook_url = os.getenv("WEBHOOK_URL")
-    if webhook_url:
-        await bot.app.bot.set_webhook(url=f"{webhook_url}/webhook")
-    else:
-        # local dev — start polling in background
-        await bot.app.initialize()
-        await bot.app.start()
-        await bot.app.updater.start_polling()
 
-
-@app.post("/webhook")
-async def telegram_webhook(request: Request):
-    data = await request.json()
-    update = Update.de_json(data, bot.app.bot)
-    await bot.app.process_update(update)
-    return {"ok": True}
+# @app.post("/webhook")
+# async def telegram_webhook(request: Request):
+#     data = await request.json()
+#     update = Update.de_json(data, bot.app.bot)
+#     await bot.app.process_update(update)
+#     return {"ok": True}
 
 
 @app.head("/")

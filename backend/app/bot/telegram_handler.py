@@ -1,3 +1,4 @@
+from telegram.request import HTTPXRequest
 import re
 import time
 
@@ -96,7 +97,16 @@ MIN_NEW_CHARS = 8           # skip update if fewer new chars than this
 
 class NexusBot:
     def __init__(self, token: str):
-        self.app = Application.builder().token(token).build()
+        request = HTTPXRequest(read_timeout=30, write_timeout=30, connect_timeout=10)
+        updater_request = HTTPXRequest(read_timeout=30, write_timeout=30, connect_timeout=10)
+        
+        self.app = (
+            Application.builder()
+            .token(token)
+            .request(request)
+            .get_updates_request(updater_request)
+            .build()
+        )
         self._register_handlers()
 
     def get_db(self):
@@ -122,7 +132,8 @@ class NexusBot:
         telegram_id = str(update.effective_user.id)
 
         try:
-            auth_service.link_telegram(token, telegram_id, db=db)
+            # auth_service.link_telegram(token, telegram_id, db=db)
+            auth_service.link_platform(token, "telegram", telegram_id, db=db)
             await update.message.reply_text("Linked! You're all set.")
         except HTTPException as e:
             await update.message.reply_text(f"Couldn't link: {e.detail}")

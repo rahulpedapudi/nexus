@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.user import User
@@ -35,10 +35,18 @@ def update_memory(
 ):
     return memory_service.update_memory(memory_id, new_content, db, user)
 
+@router.delete("/wipe")
+async def wipe_memories(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await memory_service.wipe_memories(db, user)
+    return Response(status_code=204)
+
 @router.delete("/{memory_id}")
 def delete_memory(
     memory_id: str, 
     db: Session = Depends(get_db), 
     user: User = Depends(get_current_user)
 ):
-    return memory_service.delete_memory(memory_id, db, user)                            
+    return memory_service.delete_memory(memory_id, db, user)
