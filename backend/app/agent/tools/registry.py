@@ -78,7 +78,7 @@ TOOLS = [
                     },
                     "remind_at": {
                         "type": "string",
-                        "description": "ISO 8601 datetime with timezone. Set only if the user wants a notification at a specific time. e.g. '2024-01-15T09:00:00+05:30'"
+                        "description": "ISO 8601 datetime with timezone offset matching the user's local time shown in the system prompt. e.g. '2024-06-17T21:00:00+05:30'"
                     },
                     "due_date": {
                         "type": "string",
@@ -162,11 +162,11 @@ TOOLS = [
                     },
                     "remind_at": {
                         "type": "string",
-                        "description": "ISO 8601 datetime. Update the reminder time."
+                        "description": "ISO 8601 datetime with timezone offset matching the user's local time shown in the system prompt. e.g. '2024-06-17T21:00:00+05:30'"
                     },
                     "due_date": {
                         "type": "string",
-                        "description": "ISO 8601 datetime. Update the deadline."
+                        "description": "ISO 8601 datetime with timezone offset matching the user's local time shown in the system prompt. e.g. '2024-06-17T21:00:00+05:30'"
                     },
                     "recurring": {
                         "type": "string",

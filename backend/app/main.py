@@ -10,6 +10,7 @@ from app.bot.telegram_handler import NexusBot
 from app.bot.discord_handler import DiscordBot
 from app.core.logging import setup_logging
 from app.api.routes import auth, chat, conversations, keys, memory, task
+from app.worker.reminder import reminder_loop
 
 load_dotenv()
 setup_logging()
@@ -22,6 +23,9 @@ discord_bot = DiscordBot(token=os.getenv("DISCORD_TOKEN"))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     discord_task = asyncio.create_task(discord_bot.start())
+    reminder_task = asyncio.create_task(
+        reminder_loop(discord_client=discord_bot.client)
+    )
     # webhook_url = os.getenv("WEBHOOK_URL")
     # if webhook_url:
     #     await bot.app.bot.set_webhook(url=f"{webhook_url}/webhook")
@@ -31,6 +35,7 @@ async def lifespan(app: FastAPI):
     #     await bot.app.start()
     #     await bot.app.updater.start_polling()
     yield
+    reminder_task.cancel()
     await discord_bot.stop()
     discord_task.cancel()
     # await bot.app.updater.stop()

@@ -21,7 +21,7 @@ def _build_system_messages(user: User, memories: str = "") -> list[dict]:
         {
             "role": "system",
             "content": SYSTEM_PROMPT.format(
-                current_datetime=datetime.now().strftime("%A, %d %B %Y %I:%M %p"),
+                current_datetime=datetime.now().astimezone().strftime("%A, %d %B %Y %I:%M %p %z"),
                 user_name=user.username,
             ),
         }

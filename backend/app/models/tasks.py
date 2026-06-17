@@ -1,7 +1,7 @@
-from datetime import UTC
 from app.db.database import Base
 
 from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, UTC
@@ -67,6 +67,12 @@ class Task(Base):
         default=False
     )
 
+    reminded = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
     source = Column(
         String(50), 
         nullable=False
@@ -81,3 +87,5 @@ class Task(Base):
         DateTime(timezone=True), 
         onupdate=lambda: datetime.now(UTC)
     )
+
+    user = relationship("User", lazy="select")
