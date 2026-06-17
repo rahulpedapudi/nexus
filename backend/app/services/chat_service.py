@@ -75,12 +75,12 @@ def _retrieve_relevant_memories(db, user, query) -> str:
 
 def _build_context(conversation: Conversation, db: Session, user: User) -> list[dict]:
     """Return the last 15 messages as a list of {role, content} dicts."""
-    # TODO: implement context summarisation when messages > 20
+    # TODO: implement context summarisation when messages > 10
     recent = (
         db.query(Message)
         .filter(Message.conv_id == conversation.id, Message.user_id == user.id)
         .order_by(Message.created_at.desc())
-        .limit(15)
+        .limit(3)
         .all()
     )
     return [{"role": m.role, "content": m.content} for m in reversed(recent)]
@@ -108,17 +108,18 @@ async def _save_assistant_message(
 
 
 async def _extract_and_store(user: User, user_msg: str, assistant_msg: str, api_key: str, db: Session):
-
-    memories = memory_extractor.extract_memories(user_msg, assistant_msg, user, db, api_key)
-
-    for m in memories:
-        memory_service.store_memory(
-            content=m["content"],
-            category=m["category"],
-            source="auto",
-            db=db,
-            user=user
-        )
+    try:
+        memories = await memory_extractor.extract_memories(user_msg, assistant_msg, user, db, api_key)
+        for m in memories:
+            memory_service.store_memory(
+                content=m["content"],
+                category=m["category"],
+                source="auto",
+                db=db,
+                user=user,
+            )
+    except Exception:
+        pass  # extraction is best-effort; don't surface errors to the user
 
 # fallback use (no streaming)
 
@@ -128,14 +129,24 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     api_key = _get_api_key(db, current_user)
     conversation = _get_conversation(data, db, current_user)
     _save_user_message(data, conversation, db, current_user)
-    memories = _retrieve_relevant_memories(db, current_user, data.content)
+    # memories = _retrieve_relevant_memories(db, current_user, data.content)
     context = _build_context(conversation, db, current_user)
 
-    llm_text = await llm_service.get_llm_response(recent_messages=context, memories=memories, api_key=api_key, db=db, user=current_user)
-    
-    asyncio.create_task(
-        _save_assistant_message(content=llm_text, conversation=conversation, data=data, db=db, user=current_user)
+    llm_text = await llm_service.get_llm_response(recent_messages=context, memories="", api_key=api_key, db=db, user=current_user)
+
+    conv_id = conversation.id
+    user_id = current_user.id
+
+    msg = Message(
+        content=llm_text,
+        role="assistant",
+        user_id=user_id,
+        telegram_user_id=data.telegram_user_id if data.telegram_user_id else None,
+        conv_id=conv_id,
+        source=data.source if data.source else "web",
     )
+    db.add(msg)
+    db.commit()
 
     asyncio.create_task(
         _extract_and_store(user=current_user, user_msg=data.content, assistant_msg=llm_text, api_key=api_key, db=db)
@@ -173,7 +184,7 @@ async def stream_events(
         _save_user_message(data, conversation, db, current_user)
 
         # TODO: need to retrieve relevant memories related to the query
-        memories = _retrieve_relevant_memories(db, current_user, data.content)
+        # memories = _retrieve_relevant_memories(db, current_user, data.content)
         
         # gets latest 15 messages for passing it as a context for the llm
         context = _build_context(conversation, db, current_user)
@@ -187,7 +198,7 @@ async def stream_events(
     # ── Stream from LLM ───────────────────────────────────────────────────────
     accumulated: list[str] = []
 
-    async for event in stream_response(context, memories, user=current_user, api_key=api_key, db=db):
+    async for event in stream_response(context, "", user=current_user, api_key=api_key, db=db):
         event_type = event["type"]
 
         if event_type == "status":
@@ -206,18 +217,18 @@ async def stream_events(
     try:
         saved = await _save_assistant_message(full_response, conversation, data, db, current_user)
 
-        # extract memories & store in db (in background, don't wait for it)
-        asyncio.create_task(
-            _extract_and_store(current_user, data.content, full_response, api_key, db)
-        )
-
         yield {
             "type": "done",
             "message_id": str(saved.id),
             "conv_id": str(saved.conv_id),
             "full_text": full_response,
         }
-        
+
+        # Fire memory extraction as a background task — doesn't block the done event
+        asyncio.create_task(
+            _extract_and_store(current_user, data.content, full_response, api_key, db)
+        )
+
     except Exception as exc:
         yield {"type": "error", "detail": "Failed to persist message: " + str(exc)}
 

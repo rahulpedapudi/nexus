@@ -9,7 +9,7 @@ from telegram import Update
 from app.bot.telegram_handler import NexusBot
 from app.bot.discord_handler import DiscordBot
 from app.core.logging import setup_logging
-from app.api.routes import auth, chat, conversations, keys, memory
+from app.api.routes import auth, chat, conversations, keys, memory, task
 
 load_dotenv()
 setup_logging()
@@ -81,6 +81,11 @@ app.include_router(
     tags=["memory"]
 )
 
+app.include_router(
+    router=task.router,
+    prefix="/task",
+    tags=["task"]
+)
 
 # @app.post("/webhook")
 # async def telegram_webhook(request: Request):
