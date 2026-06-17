@@ -1,3 +1,5 @@
+import logging
+import time
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
@@ -7,8 +9,13 @@ from sqlalchemy.orm import Session
 from app.schemas.task import TaskCreate, TaskUpdate
 from fastapi import HTTPException
 
+logger = logging.getLogger(__name__)
+
 def get_tasks(db: Session, user: User) -> list[Task]:
-    return db.query(Task).filter(Task.user_id == user.id).all()
+    t0 = time.perf_counter()
+    result = db.query(Task).filter(Task.user_id == user.id).all()
+    logger.info("get_tasks | user=%s | count=%d | took=%.3fs", user.id, len(result), time.perf_counter() - t0)
+    return result
 
 def search_tasks(
     db: Session,
@@ -64,16 +71,32 @@ def search_tasks(
     if remind_before is not None:
         q = q.filter(Task.remind_at <= remind_before)
 
-    return q.order_by(Task.created_at.desc()).limit(limit).all()
+    t0 = time.perf_counter()
+    result = q.order_by(Task.created_at.desc()).limit(limit).all()
+    active_filters = {
+        k: v for k, v in dict(
+            query=query, status=status, priority=priority, tag=tag,
+            done=done, due_before=due_before, due_after=due_after,
+            remind_before=remind_before, remind_after=remind_after,
+        ).items() if v is not None
+    }
+    logger.info(
+        "search_tasks | user=%s | filters=%s | count=%d | took=%.3fs",
+        user.id, active_filters, len(result), time.perf_counter() - t0,
+    )
+    return result
 
 def create_task(db: Session, user: User, task_data: TaskCreate) -> Task:
-    task = Task(**task_data.model_dump(), user_id=user.id)    
+    t0 = time.perf_counter()
+    task = Task(**task_data.model_dump(), user_id=user.id)
     db.add(task)
     db.commit()
     db.refresh(task)
+    logger.info("create_task | user=%s | task_id=%s | took=%.3fs", user.id, task.id, time.perf_counter() - t0)
     return task
 
 def update_task(db: Session, user: User, task_id: str, task_data: TaskUpdate) -> Task:
+    t0 = time.perf_counter()
     task = db.query(Task).filter(
         Task.user_id == user.id,
         Task.id == task_id
@@ -83,14 +106,17 @@ def update_task(db: Session, user: User, task_id: str, task_data: TaskUpdate) ->
         raise HTTPException(status_code=404, detail="Task not found")
 
     # Only update fields that were explicitly provided in the request
+    updated_fields = list(task_data.model_dump(exclude_unset=True).keys())
     for key, value in task_data.model_dump(exclude_unset=True).items():
         setattr(task, key, value)
 
     db.commit()
     db.refresh(task)
+    logger.info("update_task | user=%s | task_id=%s | fields=%s | took=%.3fs", user.id, task_id, updated_fields, time.perf_counter() - t0)
     return task
 
 def delete_task(db: Session, user: User, task_id: str) -> Task:
+    t0 = time.perf_counter()
     task = db.query(Task).filter(
         Task.user_id == user.id,
         Task.id == task_id
@@ -101,4 +127,5 @@ def delete_task(db: Session, user: User, task_id: str) -> Task:
 
     db.delete(task)
     db.commit()
+    logger.info("delete_task | user=%s | task_id=%s | took=%.3fs", user.id, task_id, time.perf_counter() - t0)
     return task

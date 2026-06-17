@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from groq import AsyncGroq
 import json
 import logging
+import time
 
 from app.core.config import settings
 from app.agent.prompts import EXTRACTION_PROMPT
@@ -27,6 +28,7 @@ async def extract_memories(
     memories = memory_service.list_all_memories(db, user)
     past_memories_str = "\n".join([f"- {m.content}" for m in memories])
 
+    t0 = time.perf_counter()
     response = await client.chat.completions.create(
         model=settings.MODEL,
         messages=[
@@ -75,4 +77,9 @@ async def extract_memories(
 
     raw = response.choices[0].message.content
     parsed = json.loads(raw)
-    return parsed.get("memories", [])
+    memories = parsed.get("memories", [])
+    logger.info(
+        "extract_memories | user=%s | extracted=%d | took=%.3fs",
+        user.id, len(memories), time.perf_counter() - t0,
+    )
+    return memories

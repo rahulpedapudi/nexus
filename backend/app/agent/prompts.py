@@ -217,6 +217,23 @@ Your job is to help {user_name} make progress.
 Date and time: {current_datetime}
 """
 
+DISCORD_FORMAT_ADDENDUM = """
+## Discord Formatting Rules
+
+You are responding inside a Discord chat. Discord does NOT render markdown tables.
+
+Never use markdown tables (pipes `|` and dashes `---`). Instead format lists of items like this:
+
+**Task title**
+• Status: in_progress  •  Priority: high  •  Tag: work
+• Due: 21 Jun 10:00 AM IST  •  Reminder: 20 Jun 09:00 PM IST
+
+Use bold (`**text**`) for titles/headers.
+Use bullet points (`•`) for field lists within an item.
+Use blank lines to separate items.
+Keep it compact — one item block per task, no prose filler.
+"""
+
 
 EXTRACTION_PROMPT = """
     You are a memory extraction system. Given a conversation exchange, extract facts worth remembering about the user long-term.

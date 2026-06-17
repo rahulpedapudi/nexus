@@ -1,5 +1,7 @@
 import asyncio
 import json
+import logging
+import time
 from typing import AsyncGenerator
 
 from app.services import keys_service
@@ -16,7 +18,8 @@ from app.services import memory_service
 from app.services import memory_extractor
 
 from app.services import llm_service
-# helper funcs
+
+logger = logging.getLogger(__name__)
 
 def _get_api_key(db: Session, user: User) -> str:
     """Fetch and return the user's Groq API key or raise HTTP 400."""
@@ -74,7 +77,7 @@ def _retrieve_relevant_memories(db, user, query) -> str:
     return "\n".join([f"- {m.content}" for m in memories])
 
 def _build_context(conversation: Conversation, db: Session, user: User) -> list[dict]:
-    """Return the last 15 messages as a list of {role, content} dicts."""
+    """Return the last 3 messages as a list of {role, content} dicts."""
     # TODO: implement context summarisation when messages > 10
     recent = (
         db.query(Message)
@@ -108,8 +111,10 @@ async def _save_assistant_message(
 
 
 async def _extract_and_store(user: User, user_msg: str, assistant_msg: str, api_key: str, db: Session):
+    t0 = time.perf_counter()
     try:
         memories = await memory_extractor.extract_memories(user_msg, assistant_msg, user, db, api_key)
+        stored = 0
         for m in memories:
             memory_service.store_memory(
                 content=m["content"],
@@ -118,21 +123,42 @@ async def _extract_and_store(user: User, user_msg: str, assistant_msg: str, api_
                 db=db,
                 user=user,
             )
+            stored += 1
+        logger.info(
+            "_extract_and_store | user=%s | extracted=%d | stored=%d | took=%.3fs",
+            user.id, len(memories), stored, time.perf_counter() - t0,
+        )
     except Exception:
+        logger.exception("_extract_and_store failed | user=%s | took=%.3fs", user.id, time.perf_counter() - t0)
         pass  # extraction is best-effort; don't surface errors to the user
 
-# fallback use (no streaming)
 
 #! USED BY DISCORD
 async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     """Blocking chat — full response in one shot."""
+    total_t0 = time.perf_counter()
+
     api_key = _get_api_key(db, current_user)
     conversation = _get_conversation(data, db, current_user)
     _save_user_message(data, conversation, db, current_user)
     # memories = _retrieve_relevant_memories(db, current_user, data.content)
-    context = _build_context(conversation, db, current_user)
 
-    llm_text = await llm_service.get_llm_response(recent_messages=context, memories="", api_key=api_key, db=db, user=current_user)
+    t0 = time.perf_counter()
+
+    context = _build_context(conversation, db, current_user)
+    logger.info("chat | context_build | user=%s | msgs=%d | took=%.3fs", current_user.id, len(context), time.perf_counter() - t0)
+
+    try:
+        llm_text = await llm_service.get_llm_response(
+            recent_messages=context, memories="", api_key=api_key,
+            db=db, user=current_user, source=data.source or "web",
+        )
+    except RuntimeError as exc:
+        # get_llm_response raises RuntimeError with a user-friendly message
+        logger.warning("chat | llm_error | user=%s | %s", current_user.id, exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    logger.info("chat | llm_response | user=%s | took=%.3fs", current_user.id, time.perf_counter() - t0)
 
     conv_id = conversation.id
     user_id = current_user.id
@@ -147,6 +173,8 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     )
     db.add(msg)
     db.commit()
+
+    logger.info("chat | done | user=%s | total=%.3fs", current_user.id, time.perf_counter() - total_t0)
 
     asyncio.create_task(
         _extract_and_store(user=current_user, user_msg=data.content, assistant_msg=llm_text, api_key=api_key, db=db)
@@ -172,7 +200,8 @@ async def stream_events(
         {"type": "done",    "message_id": "...", "conv_id": "..."}
         {"type": "error",   "detail": "..."}
     """
-    # ── DB setup (sync, completes before any yield) ───────────────────────────
+    # ── DB setup (sync, completes before any yield) ─────────────────────
+    total_t0 = time.perf_counter()
     try:
         # gets user's groq api key
         api_key = _get_api_key(db, current_user)
@@ -187,7 +216,9 @@ async def stream_events(
         # memories = _retrieve_relevant_memories(db, current_user, data.content)
         
         # gets latest 15 messages for passing it as a context for the llm
+        t0 = time.perf_counter()
         context = _build_context(conversation, db, current_user)
+        logger.info("stream_events | context_build | user=%s | msgs=%d | took=%.3fs", current_user.id, len(context), time.perf_counter() - t0)
     except HTTPException as exc:
         yield {"type": "error", "detail": exc.detail}
         return
@@ -198,7 +229,10 @@ async def stream_events(
     # ── Stream from LLM ───────────────────────────────────────────────────────
     accumulated: list[str] = []
 
-    async for event in stream_response(context, "", user=current_user, api_key=api_key, db=db):
+    async for event in stream_response(
+        context, "", user=current_user, api_key=api_key,
+        db=db, source=data.source or "web",
+    ):
         event_type = event["type"]
 
         if event_type == "status":
@@ -209,13 +243,19 @@ async def stream_events(
             yield {"type": "delta", "text": event["text"]}
 
         elif event_type == "error":
-            yield {"type": "error", "detail": event["detail"]}
+            # Forward both detail and the optional machine-readable code
+            yield {"type": "error", "code": event.get("code", "unknown_error"), "detail": event["detail"]}
             return
 
-    # ── Persist and signal done ───────────────────────────────────────────────
+    # ── Persist and signal done ───────────────────────────────────────
     full_response = "".join(accumulated)
     try:
         saved = await _save_assistant_message(full_response, conversation, data, db, current_user)
+
+        logger.info(
+            "stream_events | done | user=%s | total=%.3fs",
+            current_user.id, time.perf_counter() - total_t0,
+        )
 
         yield {
             "type": "done",
