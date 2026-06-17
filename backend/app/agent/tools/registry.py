@@ -22,6 +22,23 @@ TOOLS = [
         }
     },
     {
+        "type":"function",
+        "function": {
+            "name":"get_all_tasks",
+            "description":"Get all tasks",
+            "parameters":{
+                "type":"object",
+                "properties":{
+                    "query":{
+                        "type":"string",
+                        "description":"Query to search for tasks"
+                    }
+                },
+                "required":["query"]
+            }
+        }
+    },
+    {
         "type": "function",
         "function": {
             "name": "save_memory",
@@ -108,18 +125,58 @@ TOOLS = [
         "function": {
             "name": "search_tasks",
             "description": (
-                "Search the user's tasks by keyword. Returns up to 5 matching tasks including their IDs. "
-                "Call this before update_task to find the task ID — use a keyword from the user's message as the query."
+                "Search or filter the user's tasks. All parameters are optional and combinable. "
+                "Use 'query' for keyword lookup (searches title and note). "
+                "Use the filter fields to narrow by status, priority, tag, completion state, deadline, or reminder time. "
+                "Always call this before update_task to find the task ID."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "A keyword or phrase to search for in task titles. e.g. 'dentist', 'groceries', 'meeting'"
+                        "description": "Keyword or phrase to search in task title or note. e.g. 'dentist', 'groceries'"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "in_progress", "done"],
+                        "description": "Filter by task status."
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["low", "normal", "high"],
+                        "description": "Filter by priority level."
+                    },
+                    "tag": {
+                        "type": "string",
+                        "description": "Filter by tag/category. e.g. 'work', 'health', 'personal'"
+                    },
+                    "done": {
+                        "type": "boolean",
+                        "description": "Filter by completion state. true = completed, false = incomplete."
+                    },
+                    "due_after": {
+                        "type": "string",
+                        "description": "Return tasks with due_date on or after this ISO 8601 datetime. e.g. '2026-06-17T00:00:00+05:30'"
+                    },
+                    "due_before": {
+                        "type": "string",
+                        "description": "Return tasks with due_date on or before this ISO 8601 datetime."
+                    },
+                    "remind_after": {
+                        "type": "string",
+                        "description": "Return tasks with remind_at on or after this ISO 8601 datetime. Useful to find upcoming reminders."
+                    },
+                    "remind_before": {
+                        "type": "string",
+                        "description": "Return tasks with remind_at on or before this ISO 8601 datetime."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return. Defaults to 20, max 100."
                     }
                 },
-                "required": ["query"]
+                "required": []
             }
         }
     },
@@ -213,6 +270,18 @@ def _save_memory_tool(db: Session, user: User, memories: list = None):
         return "No new memories saved"
     return [{"content": m.content, "category": m.category} for m in saved]
 
+def _fmt_dt(dt) -> str | None:
+    """Convert a UTC-aware datetime from the DB to local time for LLM consumption."""
+    if dt is None:
+        return None
+    from datetime import timezone
+    # Ensure dt is timezone-aware (SQLAlchemy returns UTC-aware for TIMESTAMPTZ)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    # Convert to the server's local timezone so the LLM sees wall-clock time
+    return dt.astimezone().isoformat()
+
+
 def _create_task_tool(db: Session, user: User, **kwargs):
     from app.schemas.task import TaskCreate
     task_data = TaskCreate(**kwargs)
@@ -221,8 +290,39 @@ def _create_task_tool(db: Session, user: User, **kwargs):
 
     return [{"title": task.title, "status": "Task Created Successfully"}]
 
-def _search_tasks_tool(db: Session, user: User, query: str):
-    tasks = task_service.search_tasks(db, user, query)
+def _search_tasks_tool(
+    db: Session,
+    user: User,
+    query: str = None,
+    status: str = None,
+    priority: str = None,
+    tag: str = None,
+    done: bool = None,
+    due_after: str = None,
+    due_before: str = None,
+    remind_after: str = None,
+    remind_before: str = None,
+    limit: int = 20,
+):
+    from datetime import datetime
+
+    def _parse_dt(value):
+        return datetime.fromisoformat(value) if value else None
+
+    tasks = task_service.search_tasks(
+        db=db,
+        user=user,
+        query=query,
+        status=status,
+        priority=priority,
+        tag=tag,
+        done=done,
+        due_after=_parse_dt(due_after),
+        due_before=_parse_dt(due_before),
+        remind_after=_parse_dt(remind_after),
+        remind_before=_parse_dt(remind_before),
+        limit=limit,
+    )
     if not tasks:
         return "No matching tasks found"
     return [
@@ -231,7 +331,10 @@ def _search_tasks_tool(db: Session, user: User, query: str):
             "title": str(task.title),
             "status": str(task.status),
             "priority": str(task.priority),
-            "done": task.done
+            "tag": str(task.tag),
+            "done": task.done,
+            "due_date": _fmt_dt(task.due_date),
+            "remind_at": _fmt_dt(task.remind_at),
         }
         for task in tasks
     ]
@@ -242,7 +345,24 @@ def _update_task_tool(db: Session, user: User, task_id: str, **kwargs):
     task = task_service.update_task(db, user, task_id, task_data)
     return [{"title": task.title, "status": "Task Updated Successfully"}]
 
-
+def _get_all_tasks_took(db: Session, user: User):
+    tasks = task_service.get_all_tasks(db, user)
+    if not tasks:
+        return "No tasks found"
+    return [
+        {
+            "id": str(task.id),
+            "title": str(task.title),
+            "note": str(task.note),
+            "remind_at": _fmt_dt(task.remind_at),
+            "due_date": _fmt_dt(task.due_date),
+            "recurring": str(task.recurring),
+            "priority": str(task.priority),
+            "tag": str(task.tag),
+            "done": task.done
+        }
+        for task in tasks
+    ]
 
 AVAILABALE_TOOLS = {
     "search_memories": _search_memories_tool,
