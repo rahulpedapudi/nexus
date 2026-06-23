@@ -30,7 +30,7 @@ async def extract_memories(
 
     t0 = time.perf_counter()
     response = await client.chat.completions.create(
-        model=settings.MODEL,
+        model=settings.GROQ_DEFAULT_MODEL,
         messages=[
             {
                 "role": "system",

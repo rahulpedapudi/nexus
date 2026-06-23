@@ -26,20 +26,20 @@ async def lifespan(app: FastAPI):
     reminder_task = asyncio.create_task(
         reminder_loop(discord_client=discord_bot.client)
     )
-    # webhook_url = os.getenv("WEBHOOK_URL")
-    # if webhook_url:
-    #     await bot.app.bot.set_webhook(url=f"{webhook_url}/webhook")
-    # else:
-    #     # local dev — start polling in background
-    #     await bot.app.initialize()
-    #     await bot.app.start()
-    #     await bot.app.updater.start_polling()
+    webhook_url = os.getenv("WEBHOOK_URL")
+    if webhook_url:
+        await bot.app.bot.set_webhook(url=f"{webhook_url}/webhook")
+    else:
+        # local dev — start polling in background
+        await bot.app.initialize()
+        await bot.app.start()
+        await bot.app.updater.start_polling()
     yield
     reminder_task.cancel()
     await discord_bot.stop()
     discord_task.cancel()
-    # await bot.app.updater.stop()
-    # await bot.app.stop()
+    await bot.app.updater.stop()
+    await bot.app.stop()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -71,13 +71,13 @@ app.include_router(
 app.include_router(
     router=conversations.router,
     prefix="/conversations",
-    tags=["conversations"]  
+    tags=["conversations"]
 )
 
 app.include_router(
     router=keys.router,
     prefix="/keys",
-    tags=["keys"]  
+    tags=["keys"]
 )
 
 app.include_router(
@@ -103,6 +103,7 @@ app.include_router(
 @app.head("/")
 def test():
     return Response(status_code=200)
+
 
 @app.get("/health")
 def health():

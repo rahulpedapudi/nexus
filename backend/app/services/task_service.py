@@ -11,11 +11,14 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
+
 def get_tasks(db: Session, user: User) -> list[Task]:
     t0 = time.perf_counter()
     result = db.query(Task).filter(Task.user_id == user.id).all()
-    logger.info("get_tasks | user=%s | count=%d | took=%.3fs", user.id, len(result), time.perf_counter() - t0)
+    logger.info("get_tasks | user=%s | count=%d | took=%.3fs",
+                user.id, len(result), time.perf_counter() - t0)
     return result
+
 
 def search_tasks(
     db: Session,
@@ -86,14 +89,17 @@ def search_tasks(
     )
     return result
 
+
 def create_task(db: Session, user: User, task_data: TaskCreate) -> Task:
     t0 = time.perf_counter()
     task = Task(**task_data.model_dump(), user_id=user.id)
     db.add(task)
     db.commit()
     db.refresh(task)
-    logger.info("create_task | user=%s | task_id=%s | took=%.3fs", user.id, task.id, time.perf_counter() - t0)
+    logger.info("create_task | user=%s | task_id=%s | took=%.3fs",
+                user.id, task.id, time.perf_counter() - t0)
     return task
+
 
 def update_task(db: Session, user: User, task_id: str, task_data: TaskUpdate) -> Task:
     t0 = time.perf_counter()
@@ -112,8 +118,10 @@ def update_task(db: Session, user: User, task_id: str, task_data: TaskUpdate) ->
 
     db.commit()
     db.refresh(task)
-    logger.info("update_task | user=%s | task_id=%s | fields=%s | took=%.3fs", user.id, task_id, updated_fields, time.perf_counter() - t0)
+    logger.info("update_task | user=%s | task_id=%s | fields=%s | took=%.3fs",
+                user.id, task_id, updated_fields, time.perf_counter() - t0)
     return task
+
 
 def delete_task(db: Session, user: User, task_id: str) -> Task:
     t0 = time.perf_counter()
@@ -127,5 +135,6 @@ def delete_task(db: Session, user: User, task_id: str) -> Task:
 
     db.delete(task)
     db.commit()
-    logger.info("delete_task | user=%s | task_id=%s | took=%.3fs", user.id, task_id, time.perf_counter() - t0)
+    logger.info("delete_task | user=%s | task_id=%s | took=%.3fs",
+                user.id, task_id, time.perf_counter() - t0)
     return task

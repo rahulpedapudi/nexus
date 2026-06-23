@@ -14,6 +14,10 @@ from app.services import auth_service
 from app.db.database import SessionLocal
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
+
+from app.models.platform_identities import PlatformIdentity
 
 # ── Markdown → MarkdownV2 converter ──────────────────────────────────────────
 
@@ -97,9 +101,11 @@ MIN_NEW_CHARS = 8           # skip update if fewer new chars than this
 
 class NexusBot:
     def __init__(self, token: str):
-        request = HTTPXRequest(read_timeout=30, write_timeout=30, connect_timeout=10)
-        updater_request = HTTPXRequest(read_timeout=30, write_timeout=30, connect_timeout=10)
-        
+        request = HTTPXRequest(
+            read_timeout=30, write_timeout=30, connect_timeout=10)
+        updater_request = HTTPXRequest(
+            read_timeout=30, write_timeout=30, connect_timeout=10)
+
         self.app = (
             Application.builder()
             .token(token)
@@ -156,19 +162,26 @@ class NexusBot:
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_message = update.message.text
-        telegram_user_id = update.effective_user.id
+        platform_user_id = str(update.effective_user.id)
 
         with SessionLocal() as db:
-            user = db.query(User).filter(
-                User.telegram_id == str(telegram_user_id)).first()
+            identity = (
+                db.execute(
+                    select(PlatformIdentity)
+                    .where(PlatformIdentity.platform == "telegram")
+                    .where(PlatformIdentity.platform_id == platform_user_id)
+                    .options(joinedload(PlatformIdentity.user))
+                )
+                .scalar_one_or_none()
+            )
 
-        if not user:
+        if not identity:
             await update.message.reply_text(
                 "You're not linked yet. Sign up at nexus.app and connect your Telegram."
             )
             return
 
-        await self._stream_reply(update, user_message, str(telegram_user_id), user)
+        await self._stream_reply(update, user_message, platform_user_id, identity.user)
 
     # ── Streaming reply ───────────────────────────────────────────────────────
 

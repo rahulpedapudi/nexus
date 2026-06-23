@@ -22,20 +22,10 @@ TOOLS = [
         }
     },
     {
-        "type":"function",
+        "type": "function",
         "function": {
-            "name":"get_all_tasks",
-            "description":"Get all tasks",
-            "parameters":{
-                "type":"object",
-                "properties":{
-                    "query":{
-                        "type":"string",
-                        "description":"Query to search for tasks"
-                    }
-                },
-                "required":["query"]
-            }
+            "name": "get_all_tasks",
+            "description": "Get all tasks",
         }
     },
     {
@@ -241,11 +231,13 @@ TOOLS = [
     }
 ]
 
+
 def _search_memories_tool(db: Session, user: User, query: str):
     memories = memory_service.search_memories(db, user, query)
     if not memories:
         return "No memories found"
     return [{"content": m.content, "category": m.category} for m in memories]
+
 
 def _save_memory_tool(db: Session, user: User, memories: list = None):
 
@@ -261,7 +253,7 @@ def _save_memory_tool(db: Session, user: User, memories: list = None):
             db=db,
             user=user
         ))
-    
+
     # store_memory returns None if memory already exists (due to duplicate check)
     # so we filter out the None values
     saved = [m for m in results if m is not None]
@@ -269,6 +261,7 @@ def _save_memory_tool(db: Session, user: User, memories: list = None):
     if not saved:
         return "No new memories saved"
     return [{"content": m.content, "category": m.category} for m in saved]
+
 
 def _fmt_dt(dt) -> str | None:
     """Convert a UTC-aware datetime from the DB to local time for LLM consumption."""
@@ -285,10 +278,11 @@ def _fmt_dt(dt) -> str | None:
 def _create_task_tool(db: Session, user: User, **kwargs):
     from app.schemas.task import TaskCreate
     task_data = TaskCreate(**kwargs)
-    
+
     task = task_service.create_task(db, user, task_data)
 
     return [{"title": task.title, "status": "Task Created Successfully"}]
+
 
 def _search_tasks_tool(
     db: Session,
@@ -339,14 +333,16 @@ def _search_tasks_tool(
         for task in tasks
     ]
 
+
 def _update_task_tool(db: Session, user: User, task_id: str, **kwargs):
     from app.schemas.task import TaskUpdate
     task_data = TaskUpdate(**kwargs)
     task = task_service.update_task(db, user, task_id, task_data)
     return [{"title": task.title, "status": "Task Updated Successfully"}]
 
-def _get_all_tasks_took(db: Session, user: User):
-    tasks = task_service.get_all_tasks(db, user)
+
+def _get_all_tasks_tool(db: Session, user: User):
+    tasks = task_service.get_tasks(db, user)
     if not tasks:
         return "No tasks found"
     return [
@@ -364,10 +360,12 @@ def _get_all_tasks_took(db: Session, user: User):
         for task in tasks
     ]
 
+
 AVAILABALE_TOOLS = {
     "search_memories": _search_memories_tool,
     "save_memory": _save_memory_tool,
     "create_task": _create_task_tool,
     "search_tasks": _search_tasks_tool,
-    "update_task": _update_task_tool
+    "update_task": _update_task_tool,
+    "get_all_tasks": _get_all_tasks_tool,
 }

@@ -3,6 +3,8 @@ import json
 import logging
 import time
 from typing import AsyncGenerator
+import os
+from dotenv import load_dotenv
 
 from app.services import keys_service
 from sqlalchemy.orm import Session
@@ -19,7 +21,10 @@ from app.services import memory_extractor
 
 from app.services import llm_service
 
+load_dotenv()
+
 logger = logging.getLogger(__name__)
+
 
 def _get_api_key(db: Session, user: User) -> str:
     """Fetch and return the user's Groq API key or raise HTTP 400."""
@@ -32,7 +37,7 @@ def _get_api_key(db: Session, user: User) -> str:
 def _get_conversation(data: MessageCreate, db: Session, user: User) -> Conversation:
     if data.source == "telegram":
         return get_or_create_bot_conversation("telegram", user.id, db)
-    
+
     if data.source == "discord":
         return get_or_create_bot_conversation("discord", user.id, db)
 
@@ -65,16 +70,18 @@ def _save_user_message(data: MessageCreate, conversation: Conversation, db: Sess
 
 #! this adds latency
 #! i already implemented search_memories tool for the llm to use; and also recent messages are passed as a context; so this is may not be needed;
- 
+
+
 def _retrieve_relevant_memories(db, user, query) -> str:
     # 1. search_memories(data.content)
-    memories = memory_service.search_memories(db, user, query)   
+    memories = memory_service.search_memories(db, user, query)
 
     # 2. format the retrieved memories
     if not memories:
         return "No relevant memories found."
-        
+
     return "\n".join([f"- {m.content}" for m in memories])
+
 
 def _build_context(conversation: Conversation, db: Session, user: User) -> list[dict]:
     """Return the last 3 messages as a list of {role, content} dicts."""
@@ -129,7 +136,8 @@ async def _extract_and_store(user: User, user_msg: str, assistant_msg: str, api_
             user.id, len(memories), stored, time.perf_counter() - t0,
         )
     except Exception:
-        logger.exception("_extract_and_store failed | user=%s | took=%.3fs", user.id, time.perf_counter() - t0)
+        logger.exception("_extract_and_store failed | user=%s | took=%.3fs",
+                         user.id, time.perf_counter() - t0)
         pass  # extraction is best-effort; don't surface errors to the user
 
 
@@ -138,7 +146,9 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     """Blocking chat — full response in one shot."""
     total_t0 = time.perf_counter()
 
-    api_key = _get_api_key(db, current_user)
+    # api_key = _get_api_key(db, current_user)
+    api_key = os.getenv("GROQ_API_KEY")
+
     conversation = _get_conversation(data, db, current_user)
     _save_user_message(data, conversation, db, current_user)
     # memories = _retrieve_relevant_memories(db, current_user, data.content)
@@ -146,11 +156,12 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     t0 = time.perf_counter()
 
     context = _build_context(conversation, db, current_user)
-    logger.info("chat | context_build | user=%s | msgs=%d | took=%.3fs", current_user.id, len(context), time.perf_counter() - t0)
+    logger.info("chat | context_build | user=%s | msgs=%d | took=%.3fs",
+                current_user.id, len(context), time.perf_counter() - t0)
 
     try:
         llm_text = await llm_service.get_llm_response(
-            recent_messages=context, memories="", api_key=api_key,
+            recent_messages=context, memories="",
             db=db, user=current_user, source=data.source or "web",
         )
     except RuntimeError as exc:
@@ -158,7 +169,8 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
         logger.warning("chat | llm_error | user=%s | %s", current_user.id, exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    logger.info("chat | llm_response | user=%s | took=%.3fs", current_user.id, time.perf_counter() - t0)
+    logger.info("chat | llm_response | user=%s | took=%.3fs",
+                current_user.id, time.perf_counter() - t0)
 
     conv_id = conversation.id
     user_id = current_user.id
@@ -174,15 +186,18 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     db.add(msg)
     db.commit()
 
-    logger.info("chat | done | user=%s | total=%.3fs", current_user.id, time.perf_counter() - total_t0)
+    logger.info("chat | done | user=%s | total=%.3fs",
+                current_user.id, time.perf_counter() - total_t0)
 
     asyncio.create_task(
-        _extract_and_store(user=current_user, user_msg=data.content, assistant_msg=llm_text, api_key=api_key, db=db)
+        _extract_and_store(user=current_user, user_msg=data.content,
+                           assistant_msg=llm_text, api_key=api_key, db=db)
     )
 
     return llm_text
 
 #  streaming pipeline
+
 
 async def stream_events(
     data: MessageCreate,
@@ -204,21 +219,23 @@ async def stream_events(
     total_t0 = time.perf_counter()
     try:
         # gets user's groq api key
-        api_key = _get_api_key(db, current_user)
+        # api_key = _get_api_key(db, current_user)
+        api_key = os.getenv("GROQ_API_KEY")
 
         # gets conversation - single conv_id if source is telegram, else auto-create a new conversation if no data.conv_id supplied
         conversation = _get_conversation(data, db, current_user)
-        
+
         # saves user message
         _save_user_message(data, conversation, db, current_user)
 
         # TODO: need to retrieve relevant memories related to the query
         # memories = _retrieve_relevant_memories(db, current_user, data.content)
-        
+
         # gets latest 15 messages for passing it as a context for the llm
         t0 = time.perf_counter()
         context = _build_context(conversation, db, current_user)
-        logger.info("stream_events | context_build | user=%s | msgs=%d | took=%.3fs", current_user.id, len(context), time.perf_counter() - t0)
+        logger.info("stream_events | context_build | user=%s | msgs=%d | took=%.3fs",
+                    current_user.id, len(context), time.perf_counter() - t0)
     except HTTPException as exc:
         yield {"type": "error", "detail": exc.detail}
         return
@@ -230,8 +247,7 @@ async def stream_events(
     accumulated: list[str] = []
 
     async for event in stream_response(
-        context, "", user=current_user, api_key=api_key,
-        db=db, source=data.source or "web",
+        context, "", user=current_user, db=db, source=data.source or "web",
     ):
         event_type = event["type"]
 
@@ -266,7 +282,8 @@ async def stream_events(
 
         # Fire memory extraction as a background task — doesn't block the done event
         asyncio.create_task(
-            _extract_and_store(current_user, data.content, full_response, api_key, db)
+            _extract_and_store(current_user, data.content,
+                               full_response, api_key, db)
         )
 
     except Exception as exc:
