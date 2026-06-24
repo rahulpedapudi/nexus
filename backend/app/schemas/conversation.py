@@ -7,11 +7,12 @@ class SourceEnum(str, Enum):
     web = "web"
     telegram = "telegram"
     discord = "discord"
+    tui = "tui"
 
 
 class ConversationBase(BaseModel):
     source: SourceEnum
-    
+
 
 class ConversationResponse(BaseModel):
     id: UUID4

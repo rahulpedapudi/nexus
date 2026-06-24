@@ -14,17 +14,18 @@ from app.models.platform_tokens import PlatformToken
 
 from app.models.platform_identities import PlatformIdentity
 
+
 def is_setup_complete(db: Session) -> bool:
     result = db.scalar(select(func.count()).select_from(User))
     return True if result > 0 else False
 
 
 def setup_user(data: SetupRequest, db: Session):
-    if is_setup_complete(db):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Nexus is already setup"
-        )
+    # if is_setup_complete(db):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="Nexus is already setup"
+    #     )
 
     user = User(
         email=data.email,
@@ -96,6 +97,8 @@ def refresh_tokens(refresh_token: str, db: Session):
     )
 
 #! deprecated
+
+
 def generate_link_token(
     db: Session,
     user: User
@@ -113,6 +116,8 @@ def generate_link_token(
     return token
 
 #! deprecated
+
+
 def link_telegram(token: str, telegram_id: str, db: Session):
     link = db.query(TelegramLinkToken).filter(
         TelegramLinkToken.token == token,
@@ -134,9 +139,10 @@ def link_telegram(token: str, telegram_id: str, db: Session):
 
     return {"message": "Successfully Linked telegram id"}
 
+
 def get_token(platform: str, db: Session, user: User):
     token = secrets.token_urlsafe(32)
-    
+
     platform_token = PlatformToken(
         token=token,
         user_id=user.id,

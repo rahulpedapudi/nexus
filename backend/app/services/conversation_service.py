@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.message import Message
 
+
 def get_or_create_bot_conversation(source, user_id, db):
     convo = db.query(Conversation).filter(
         Conversation.user_id == user_id,
@@ -10,7 +11,8 @@ def get_or_create_bot_conversation(source, user_id, db):
     ).first()
 
     if not convo:
-        convo = Conversation(user_id=user_id, source=source, title=f"{source.capitalize()} Chat")
+        convo = Conversation(user_id=user_id, source=source,
+                             title=f"{source.capitalize()} Chat")
         db.add(convo)
         db.commit()
         db.refresh(convo)
@@ -24,11 +26,11 @@ def get_all_conversations(db: Session, user: User):
     ).order_by(Conversation.created_at.desc()).all()
 
 
-def create_conversation(db: Session, user: User):
+def create_conversation(db: Session, user: User, source: str | None):
     conversation = Conversation(
         user_id=user.id,
         title="Untitled",
-        source="web"
+        source=source if source else "web"
     )
     db.add(conversation)
     db.commit()

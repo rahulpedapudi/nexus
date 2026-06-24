@@ -43,7 +43,7 @@ def _get_conversation(data: MessageCreate, db: Session, user: User) -> Conversat
 
     # Web: auto-create a new conversation if no conv_id supplied
     if not data.conv_id:
-        return create_conversation(db, user)
+        return create_conversation(db, user, data.source)
 
     conversation = db.query(Conversation).filter(
         Conversation.id == data.conv_id,
