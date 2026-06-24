@@ -3,7 +3,7 @@ set -euo pipefail
 
 NEXUS_HOME="${NEXUS_HOME:-$HOME/.nexus}"
 INSTALL_DIR="${NEXUS_HOME}/repo"
-COMPOSE="docker compose -f $INSTALL_DIR/docker-compose.yml --env-file $NEXUS_HOME/.env"
+COMPOSE="docker compose -f $INSTALL_DIR/compose.yaml --env-file $NEXUS_HOME/.env"
 
 case "${1:-help}" in
   start)    $COMPOSE up -d ;;

@@ -82,14 +82,14 @@ done
 section "Starting services..."
 
 NEXUS_HOME="$NEXUS_HOME" docker compose \
-  -f "$INSTALL_DIR/docker-compose.yml" \
+  -f "$INSTALL_DIR/compose.yaml" \
   --env-file "$ENV_FILE" \
   up -d --build
 
 # ── 6. run migrations ─────────────────────────────────────────
 info "Running database migrations..."
 NEXUS_HOME="$NEXUS_HOME" docker compose \
-  -f "$INSTALL_DIR/docker-compose.yml" \
+  -f "$INSTALL_DIR/compose.yaml" \
   --env-file "$ENV_FILE" \
   exec api alembic upgrade head
 
