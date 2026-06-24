@@ -9,9 +9,11 @@ import logging
 import time
 
 from app.agent.prompts import SYSTEM_PROMPT, DISCORD_FORMAT_ADDENDUM, TELEGRAM_ADDENDUM
-from app.agent.tools.registry import TOOLS
-from app.agent.tools.tool_executor import execute_tool
+
 from app.agent.llms import build_llm_provider, LLMError
+
+from app.agent.tools.registry import registry
+
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -59,16 +61,9 @@ async def get_llm_response(
             loop_count += 1
             t0 = time.perf_counter()
 
-            # response = await client.chat.completions.create(
-            #     model=settings.MODEL,
-            #     messages=messages,
-            #     tools=TOOLS,
-            #     tool_choice="auto",
-            # )
-
             response = await _provider.complete(
                 messages=messages,
-                tools=TOOLS,
+                tools=registry.schemas,
                 # model=settings.MODEL,
             )
 
@@ -98,7 +93,7 @@ async def get_llm_response(
                 tool_name = tool_call.name
                 arguments = json.loads(tool_call.arguments)
 
-                tool_result = execute_tool(
+                tool_result = registry.execute(
                     tool_name=tool_name,
                     user=user,
                     db=db,
@@ -155,14 +150,8 @@ async def stream_response(
             # First, do a non-streaming probe to detect tool calls
             loop_count += 1
             t0 = time.perf_counter()
-            # probe = await client.chat.completions.create(
-            #     model=settings.MODEL,
-            #     messages=messages,
-            #     tools=TOOLS,
-            #     tool_choice="auto",
-            # )
 
-            probe = await _provider.complete(messages=messages, tools=TOOLS)
+            probe = await _provider.complete(messages=messages, tools=registry.schemas)
 
             logger.info("stream_response | probe #%d | user=%s | took=%.3fs",
                         loop_count, user.id, time.perf_counter() - t0)
@@ -189,7 +178,7 @@ async def stream_response(
                 logger.info(
                     "stream_response | tool=%s | user=%s | starting", tool_name, user.id)
 
-                tool_result = execute_tool(
+                tool_result = registry.execute(
                     tool_name=tool_name,
                     user=user,
                     db=db,

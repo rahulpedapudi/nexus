@@ -57,3 +57,4 @@ class User(Base):
     )
 
     identities = relationship("PlatformIdentity", back_populates="user")
+    oauth_tokens = relationship("OAuthToken", back_populates="user")

@@ -2,15 +2,22 @@ from contextlib import asynccontextmanager
 import asyncio
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Base, engine
-from telegram import Update
 from app.bot.telegram_handler import NexusBot
 from app.bot.discord_handler import DiscordBot
 from app.core.logging import setup_logging
-from app.api.routes import auth, chat, conversations, keys, memory, task
+from app.api.routes import auth, chat, conversations, keys, memory, task, integrations
 from app.worker.reminder import reminder_loop
+
+# Register tools
+from app.agent.tools import tasks, memories
+from app.agent.tools.integrations.google import calendar
+
+tasks.register()
+memories.register()
+calendar.register()
 
 load_dotenv()
 setup_logging()
@@ -90,6 +97,11 @@ app.include_router(
     router=task.router,
     prefix="/task",
     tags=["task"]
+)
+
+app.include_router(
+    router=integrations.router,
+    tags=["integrations"]
 )
 
 # @app.post("/webhook")

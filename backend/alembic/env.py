@@ -17,6 +17,7 @@ from app.models.memory import Memory
 from app.models.platform_tokens import PlatformToken
 from app.models.platform_identities import PlatformIdentity
 from app.models.tasks import Task
+from app.models.oauth_tokens import OAuthToken
 
 load_dotenv()
 
@@ -25,7 +26,7 @@ load_dotenv()
 config = context.config
 
 # Override sqlalchemy.url from environment if alembic.ini has it blank
-_db_url = os.getenv("DATABASE_URL_POOLER") or os.getenv("DATABASE_URL")
+_db_url = os.getenv("LOCAL_DATABASE_URL")
 if _db_url:
     config.set_main_option("sqlalchemy.url", _db_url)
 
