@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useListKeys, useCreateKey } from "../../hooks/useKey";
+import { api } from "../../api/client";
 
 const STATIC_INTEGRATIONS = [
   {
@@ -97,7 +98,27 @@ export const Integrations = () => {
     }
   }, [isLlmDrawerOpen, activeProvider]);
 
-  const toggleConnection = (id: string) => {
+  const toggleConnection = async (id: string) => {
+    if (id === "calendar") {
+      const integration = integrations.find((i) => i.id === id);
+      if (!integration?.connected) {
+        try {
+          const res = await api.get("/integrations/google/connect");
+          if (res.data?.url) {
+            window.location.href = res.data.url;
+            return;
+          }
+        } catch (error) {
+          console.error("Failed to connect to Google Calendar:", error);
+          // If it fails, we fall through and toggle the visual state anyway or just return
+          // Actually, if it fails, we probably shouldn't toggle visually
+          return;
+        }
+      } else {
+        // Disconnect logic could go here later
+      }
+    }
+
     setIntegrations(
       integrations.map((i) =>
         i.id === id ? { ...i, connected: !i.connected } : i,

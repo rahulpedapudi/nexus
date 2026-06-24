@@ -25,13 +25,13 @@ export const router = createBrowserRouter([
     Component: Setup,
   },
   {
+    path: "/onboarding",
+    Component: Onboarding,
+  },
+  {
     // All routes below require authentication
     Component: ProtectedRoute,
     children: [
-      {
-        path: "/onboarding",
-        Component: Onboarding,
-      },
       {
         path: "/",
         Component: Layout,
