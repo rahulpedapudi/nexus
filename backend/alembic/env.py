@@ -12,7 +12,7 @@ from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.linktoken import TelegramLinkToken
-from app.models.keys import Keys    
+from app.models.keys import Keys
 from app.models.memory import Memory
 from app.models.platform_tokens import PlatformToken
 from app.models.platform_identities import PlatformIdentity
@@ -26,7 +26,7 @@ load_dotenv()
 config = context.config
 
 # Override sqlalchemy.url from environment if alembic.ini has it blank
-_db_url = os.getenv("LOCAL_DATABASE_URL")
+_db_url = os.getenv("DATABASE_URL")
 if _db_url:
     config.set_main_option("sqlalchemy.url", _db_url)
 

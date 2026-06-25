@@ -79,6 +79,8 @@ pip-delete-this-directory.txt
 *.secret
 *.pem
 TODO.md
+learnings.md
+credentials.json
 
 # ==========================================
 # IDEs and OS Junk

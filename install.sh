@@ -61,6 +61,8 @@ if [ ! -f "$ENV_FILE" ]; then
   sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|"             "$ENV_FILE"
   sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" "$ENV_FILE"
   sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|"             "$ENV_FILE"
+  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://nexus:${POSTGRES_PASSWORD}@db:5432/nexus|"             "$ENV_FILE"
+
 
   warn "LLM/bot keys left blank — fill them in at: $ENV_FILE"
   warn "Then run: nexus (to open the TUI and configure everything)"
