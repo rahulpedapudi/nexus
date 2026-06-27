@@ -83,6 +83,12 @@ done
 # ── 5. start services ─────────────────────────────────────────
 section "Starting services..."
 
+# exporting so that the compose yaml picks it up
+export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d= -f2)
+export NEXUS_HOME="$NEXUS_HOME"
+export PORT=$(grep "^PORT=" "$ENV_FILE" | cut -d= -f2 || echo 8000)
+export CLIENT_PORT=$(grep "^CLIENT_PORT=" "$ENV_FILE" | cut -d= -f2 || echo 3000)
+
 NEXUS_HOME="$NEXUS_HOME" docker compose \
   -f "$INSTALL_DIR/compose.yaml" \
   --env-file "$ENV_FILE" \
@@ -90,6 +96,11 @@ NEXUS_HOME="$NEXUS_HOME" docker compose \
 
 # ── 6. run migrations ─────────────────────────────────────────
 info "Running database migrations..."
+
+
+export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d= -f2)
+export NEXUS_HOME="$NEXUS_HOME"
+
 NEXUS_HOME="$NEXUS_HOME" docker compose \
   -f "$INSTALL_DIR/compose.yaml" \
   --env-file "$ENV_FILE" \
