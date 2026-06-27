@@ -1,14 +1,12 @@
-import os
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from app.core.config import settings
 
-load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = settings.GOOGLE_API_KEY
 
 client = genai.Client(api_key=GEMINI_API_KEY)
+
 
 def generate_embedding(text: str, task_type: str = "RETRIEVAL_DOCUMENT" or "RETRIEVAL_QUERY"):
     result = client.models.embed_content(
@@ -19,5 +17,5 @@ def generate_embedding(text: str, task_type: str = "RETRIEVAL_DOCUMENT" or "RETR
             output_dimensionality=768,
         )
     )
-    
+
     return result.embeddings[0].values

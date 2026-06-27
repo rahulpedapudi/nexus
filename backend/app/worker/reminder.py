@@ -10,18 +10,20 @@ Every POLL_INTERVAL seconds it:
   3. Marks the task as reminded = true
   4. If the task is recurring, bumps remind_at to the next occurrence
 """
+#!! NEED A BETTER REMINDER LOOP
+
 
 import asyncio
 import logging
-import os
 from datetime import datetime, UTC, timedelta
 
 import httpx
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
 from app.db.database import SessionLocal
 from app.models.tasks import Task
 from app.models.user import User
+from app.core.config import settings
 from app.models.platform_identities import PlatformIdentity
 
 logger = logging.getLogger(__name__)
@@ -29,7 +31,7 @@ logger = logging.getLogger(__name__)
 # How often to poll the DB for due reminders (seconds)
 POLL_INTERVAL = 60
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = settings.TELEGRAM_TOKEN
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 
@@ -41,7 +43,8 @@ async def _send_telegram(telegram_id: str, snapshot: dict) -> None:
     if snapshot.get("note"):
         lines.append(f"_{snapshot['note']}_")
     if snapshot.get("due_date"):
-        lines.append(f"📅 Due: {snapshot['due_date'].strftime('%d %b %Y %I:%M %p')}")
+        lines.append(
+            f"📅 Due: {snapshot['due_date'].strftime('%d %b %Y %I:%M %p')}")
     text = "\n".join(lines)
 
     try:
@@ -55,9 +58,11 @@ async def _send_telegram(telegram_id: str, snapshot: dict) -> None:
                 },
             )
             resp.raise_for_status()
-            logger.info(f"Telegram reminder sent to {telegram_id} for task '{snapshot['title']}'")
+            logger.info(
+                f"Telegram reminder sent to {telegram_id} for task '{snapshot['title']}'")
     except Exception as exc:
-        logger.error(f"Failed to send Telegram reminder to {telegram_id}: {exc}")
+        logger.error(
+            f"Failed to send Telegram reminder to {telegram_id}: {exc}")
 
 
 async def _send_discord(discord_user_id: str, snapshot: dict, discord_client) -> None:
@@ -66,16 +71,19 @@ async def _send_discord(discord_user_id: str, snapshot: dict, discord_client) ->
     if snapshot.get("note"):
         lines.append(f"*{snapshot['note']}*")
     if snapshot.get("due_date"):
-        lines.append(f"📅 Due: {snapshot['due_date'].strftime('%d %b %Y %I:%M %p')}")
+        lines.append(
+            f"📅 Due: {snapshot['due_date'].strftime('%d %b %Y %I:%M %p')}")
     text = "\n".join(lines)
 
     try:
         user = await discord_client.fetch_user(int(discord_user_id))
         dm = await user.create_dm()
         await dm.send(text)
-        logger.info(f"Discord reminder sent to {discord_user_id} for task '{snapshot['title']}'")
+        logger.info(
+            f"Discord reminder sent to {discord_user_id} for task '{snapshot['title']}'")
     except Exception as exc:
-        logger.error(f"Failed to send Discord reminder to {discord_user_id}: {exc}")
+        logger.error(
+            f"Failed to send Discord reminder to {discord_user_id}: {exc}")
 
 
 # ── Recurrence logic ──────────────────────────────────────────────────────────

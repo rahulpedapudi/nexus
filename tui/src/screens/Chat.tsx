@@ -11,7 +11,11 @@ import {
   renameConversation,
   streamChat,
 } from "../api/client.js";
-import type { ConversationResponse, MessageResponse, Screen } from "../api/types.js";
+import type {
+  ConversationResponse,
+  MessageResponse,
+  Screen,
+} from "../api/types.js";
 
 // ---------------------------------------------------------------------------
 // Slash commands
@@ -24,11 +28,27 @@ interface SlashCommand {
 }
 
 const COMMANDS: SlashCommand[] = [
-  { trigger: "/new",    label: "New conversation",     description: "Start a fresh conversation" },
-  { trigger: "/rename", label: "Rename",               description: "Rename: /rename My New Title" },
-  { trigger: "/delete", label: "Delete",               description: "Delete this conversation" },
-  { trigger: "/menu",   label: "Main menu",            description: "Navigate to the main menu" },
-  { trigger: "/help",   label: "Help",                 description: "List all slash commands" },
+  {
+    trigger: "/new",
+    label: "New conversation",
+    description: "Start a fresh conversation",
+  },
+  {
+    trigger: "/rename",
+    label: "Rename",
+    description: "Rename: /rename My New Title",
+  },
+  {
+    trigger: "/delete",
+    label: "Delete",
+    description: "Delete this conversation",
+  },
+  {
+    trigger: "/menu",
+    label: "Main menu",
+    description: "Navigate to the main menu",
+  },
+  { trigger: "/help", label: "Help", description: "List all slash commands" },
 ];
 
 function filterCommands(input: string): SlashCommand[] {
@@ -59,7 +79,10 @@ function wrapText(text: string, maxWidth: number): string[] {
   if (maxWidth <= 0) return [text];
   const lines: string[] = [];
   for (const rawLine of text.split("\n")) {
-    if (!rawLine) { lines.push(""); continue; }
+    if (!rawLine) {
+      lines.push("");
+      continue;
+    }
     let rem = rawLine;
     while (rem.length > maxWidth) {
       let cut = rem.lastIndexOf(" ", maxWidth);
@@ -77,14 +100,13 @@ function shortTitle(t: string | null, id: string): string {
   return t.length > 22 ? t.slice(0, 21) + "…" : t;
 }
 
-const LOGO = [
-  "███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗",
-  "████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝",
-  "██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗",
-  "██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║",
-  "██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║",
-  "╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝",
-];
+const LOGO = `
+ ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗
+ ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝
+ ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗
+ ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║
+ ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║
+ ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝`.trim();
 
 interface ChatProps {
   onNavigate: (screen: Screen) => void;
@@ -106,7 +128,9 @@ export function Chat({ onNavigate }: ChatProps) {
 
   // ── core state ────────────────────────────────────────────────────
   const [panel, setPanel] = useState<Panel>("chat");
-  const [conversations, setConversations] = useState<ConversationResponse[]>([]);
+  const [conversations, setConversations] = useState<ConversationResponse[]>(
+    [],
+  );
   const [sidebarIdx, setSidebarIdx] = useState(-1); // -1 = home / no selection
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [input, setInput] = useState("");
@@ -124,7 +148,8 @@ export function Chat({ onNavigate }: ChatProps) {
   const palette = filterCommands(input);
   const showPalette = palette.length > 0 && !streaming;
 
-  const activeConv = sidebarIdx >= 0 ? (conversations[sidebarIdx] ?? null) : null;
+  const activeConv =
+    sidebarIdx >= 0 ? (conversations[sidebarIdx] ?? null) : null;
 
   // ── load conversations ────────────────────────────────────────────
 
@@ -132,7 +157,10 @@ export function Chat({ onNavigate }: ChatProps) {
     setLoadingConvs(true);
     try {
       const convs = await listConversations();
-      convs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      convs.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
       setConversations(convs);
       // Don't auto-select — stay on home screen
     } catch (e) {
@@ -142,197 +170,294 @@ export function Chat({ onNavigate }: ChatProps) {
     }
   }, []);
 
-  useEffect(() => { loadConversations(); }, [loadConversations]);
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   // ── load messages when sidebar selection changes ───────────────────
 
   useEffect(() => {
-    if (!activeConv) { setMessages([]); return; }
+    if (!activeConv) {
+      setMessages([]);
+      return;
+    }
     setLoadingMsgs(true);
     setError("");
     getMessages(activeConv.id)
       .then((msgs: MessageResponse[]) =>
-        setMessages(msgs.map((m) => ({ role: m.role, content: m.content }))))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+        setMessages(msgs.map((m) => ({ role: m.role, content: m.content }))),
+      )
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : String(e)),
+      )
       .finally(() => setLoadingMsgs(false));
   }, [activeConv?.id]);
 
   // ── send message ──────────────────────────────────────────────────
 
-  const sendMessage = useCallback(async (text: string) => {
-    if (!text || streaming) return;
-    setError("");
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
-    setMessages((prev) => [...prev, { role: "assistant", content: "", streaming: true }]);
-    setStreaming(true);
-    setStreamPhase("thinking");
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text || streaming) return;
+      setError("");
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "", streaming: true },
+      ]);
+      setStreaming(true);
+      setStreamPhase("thinking");
 
-    let cancelled = false;
-    abortRef.current = () => { cancelled = true; };
+      let cancelled = false;
+      abortRef.current = () => {
+        cancelled = true;
+      };
 
-    try {
-      const gen = streamChat({ content: text, source: "tui", conv_id: activeConv?.id });
-      let accumulated = "";
+      try {
+        const gen = streamChat({
+          content: text,
+          source: "tui",
+          conv_id: activeConv?.id,
+        });
+        let accumulated = "";
 
-      for await (const event of gen) {
-        if (cancelled) break;
-        if (event.type === "status") {
-          setStreamPhase(event.phase);
-        } else if (event.type === "delta") {
-          accumulated += event.text;
-          const snap = accumulated;
-          setMessages((prev) => {
-            const next = [...prev];
-            const last = next[next.length - 1];
-            if (last?.streaming) next[next.length - 1] = { role: "assistant", content: snap, streaming: true };
-            return next;
-          });
-        } else if (event.type === "done") {
-          setMessages((prev) => {
-            const next = [...prev];
-            const last = next[next.length - 1];
-            if (last?.streaming) next[next.length - 1] = { role: "assistant", content: event.full_text, streaming: false };
-            return next;
-          });
-          // Refresh sidebar if a new conv was created
-          if (!activeConv || event.conv_id !== activeConv.id) {
-            const fresh = await listConversations().catch(() => null);
-            if (fresh) {
-              fresh.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-              setConversations(fresh);
-              const idx = fresh.findIndex((c) => c.id === event.conv_id);
-              if (idx >= 0) setSidebarIdx(idx);
+        for await (const event of gen) {
+          if (cancelled) break;
+          if (event.type === "status") {
+            setStreamPhase(event.phase);
+          } else if (event.type === "delta") {
+            accumulated += event.text;
+            const snap = accumulated;
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.streaming)
+                next[next.length - 1] = {
+                  role: "assistant",
+                  content: snap,
+                  streaming: true,
+                };
+              return next;
+            });
+          } else if (event.type === "done") {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.streaming)
+                next[next.length - 1] = {
+                  role: "assistant",
+                  content: event.full_text,
+                  streaming: false,
+                };
+              return next;
+            });
+            // Refresh sidebar if a new conv was created
+            if (!activeConv || event.conv_id !== activeConv.id) {
+              const fresh = await listConversations().catch(() => null);
+              if (fresh) {
+                fresh.sort(
+                  (a, b) =>
+                    new Date(b.created_at).getTime() -
+                    new Date(a.created_at).getTime(),
+                );
+                setConversations(fresh);
+                const idx = fresh.findIndex((c) => c.id === event.conv_id);
+                if (idx >= 0) setSidebarIdx(idx);
+              }
             }
+          } else if (event.type === "error") {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.streaming)
+                next[next.length - 1] = {
+                  role: "assistant",
+                  content: `⚠ ${event.detail}`,
+                  streaming: false,
+                };
+              return next;
+            });
+            setError(event.detail);
           }
-        } else if (event.type === "error") {
-          setMessages((prev) => {
-            const next = [...prev];
-            const last = next[next.length - 1];
-            if (last?.streaming) next[next.length - 1] = { role: "assistant", content: `⚠ ${event.detail}`, streaming: false };
-            return next;
-          });
-          setError(event.detail);
         }
+      } catch (e) {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.streaming)
+            next[next.length - 1] = {
+              role: "assistant",
+              content: `⚠ ${e instanceof Error ? e.message : String(e)}`,
+              streaming: false,
+            };
+          return next;
+        });
+      } finally {
+        setStreaming(false);
+        setStreamPhase("");
+        abortRef.current = null;
       }
-    } catch (e) {
-      setMessages((prev) => {
-        const next = [...prev];
-        const last = next[next.length - 1];
-        if (last?.streaming) next[next.length - 1] = { role: "assistant", content: `⚠ ${e instanceof Error ? e.message : String(e)}`, streaming: false };
-        return next;
-      });
-    } finally {
-      setStreaming(false);
-      setStreamPhase("");
-      abortRef.current = null;
-    }
-  }, [streaming, activeConv]);
+    },
+    [streaming, activeConv],
+  );
 
   // ── execute a slash command ───────────────────────────────────────
 
-  const executeCommand = useCallback(async (cmd: SlashCommand, args: string) => {
-    setInput("");
-    setCmdIndex(0);
-    setDeleteConfirm(false);
+  const executeCommand = useCallback(
+    async (cmd: SlashCommand, args: string) => {
+      setInput("");
+      setCmdIndex(0);
+      setDeleteConfirm(false);
 
-    switch (cmd.trigger) {
-      case "/new":
-        setMessages([]);
-        setSidebarIdx(-1);
-        setPanel("chat");
-        break;
+      switch (cmd.trigger) {
+        case "/new":
+          setMessages([]);
+          setSidebarIdx(-1);
+          setPanel("chat");
+          break;
 
-      case "/rename": {
-        if (!activeConv) { setError("No conversation selected."); break; }
-        const newTitle = args.trim();
-        if (!newTitle) { setError("Usage: /rename My New Title"); break; }
-        try {
-          const updated = await renameConversation(activeConv.id, newTitle);
-          setConversations((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-        } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-        break;
+        case "/rename": {
+          if (!activeConv) {
+            setError("No conversation selected.");
+            break;
+          }
+          const newTitle = args.trim();
+          if (!newTitle) {
+            setError("Usage: /rename My New Title");
+            break;
+          }
+          try {
+            const updated = await renameConversation(activeConv.id, newTitle);
+            setConversations((prev) =>
+              prev.map((c) => (c.id === updated.id ? updated : c)),
+            );
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+          }
+          break;
+        }
+
+        case "/delete":
+          if (!activeConv) {
+            setError("No conversation selected.");
+            break;
+          }
+          setDeleteConfirm(true);
+          break;
+
+        case "/menu":
+          onNavigate("main-menu");
+          break;
+
+        case "/help":
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: COMMANDS.map(
+                (c) => `${c.trigger.padEnd(10)} — ${c.description}`,
+              ).join("\n"),
+            },
+          ]);
+          break;
       }
-
-      case "/delete":
-        if (!activeConv) { setError("No conversation selected."); break; }
-        setDeleteConfirm(true);
-        break;
-
-      case "/menu":
-        onNavigate("main-menu");
-        break;
-
-      case "/help":
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: COMMANDS.map((c) => `${c.trigger.padEnd(10)} — ${c.description}`).join("\n"),
-          },
-        ]);
-        break;
-    }
-  }, [activeConv, onNavigate]);
+    },
+    [activeConv, onNavigate],
+  );
 
   // ── handle TextInput submit (Enter key) ───────────────────────────
 
-  const handleSubmit = useCallback((value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
+  const handleSubmit = useCallback(
+    (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return;
 
-    // Delete confirm flow
-    if (deleteConfirm) {
-      if (trimmed.toLowerCase() === "yes" || trimmed === "y") {
-        if (activeConv) {
-          deleteConversation(activeConv.id).then(() => {
-            const updated = conversations.filter((c) => c.id !== activeConv.id);
-            setConversations(updated);
-            setSidebarIdx(updated.length > 0 ? 0 : -1);
-            setMessages([]);
-          }).catch((e) => setError(e instanceof Error ? e.message : String(e)));
+      // Delete confirm flow
+      if (deleteConfirm) {
+        if (trimmed.toLowerCase() === "yes" || trimmed === "y") {
+          if (activeConv) {
+            deleteConversation(activeConv.id)
+              .then(() => {
+                const updated = conversations.filter(
+                  (c) => c.id !== activeConv.id,
+                );
+                setConversations(updated);
+                setSidebarIdx(updated.length > 0 ? 0 : -1);
+                setMessages([]);
+              })
+              .catch((e) =>
+                setError(e instanceof Error ? e.message : String(e)),
+              );
+          }
         }
-      }
-      setDeleteConfirm(false);
-      setInput("");
-      return;
-    }
-
-    // If palette is visible and a command is highlighted, execute it
-    if (showPalette) {
-      const selected = palette[cmdIndex] ?? palette[0];
-      if (selected) {
-        const exact = matchExact(trimmed);
-        if (exact) {
-          // Has exact match — use args from input
-          const args = trimmed.slice(exact.trigger.length).trim();
-          executeCommand(exact, args);
-        } else {
-          executeCommand(selected, "");
-        }
+        setDeleteConfirm(false);
+        setInput("");
         return;
       }
-    }
 
-    // Regular message
-    setInput("");
-    sendMessage(trimmed);
-  }, [deleteConfirm, showPalette, palette, cmdIndex, activeConv, conversations, executeCommand, sendMessage]);
+      // If palette is visible and a command is highlighted, execute it
+      if (showPalette) {
+        const selected = palette[cmdIndex] ?? palette[0];
+        if (selected) {
+          const exact = matchExact(trimmed);
+          if (exact) {
+            // Has exact match — use args from input
+            const args = trimmed.slice(exact.trigger.length).trim();
+            executeCommand(exact, args);
+          } else {
+            executeCommand(selected, "");
+          }
+          return;
+        }
+      }
+
+      // Regular message
+      setInput("");
+      sendMessage(trimmed);
+    },
+    [
+      deleteConfirm,
+      showPalette,
+      palette,
+      cmdIndex,
+      activeConv,
+      conversations,
+      executeCommand,
+      sendMessage,
+    ],
+  );
 
   // ── keyboard handling ─────────────────────────────────────────────
 
   useInput((ch, key) => {
     // Navigate command palette with arrow keys (intercept before sidebar)
     if (showPalette) {
-      if (key.upArrow) { setCmdIndex((i) => Math.max(0, i - 1)); return; }
-      if (key.downArrow) { setCmdIndex((i) => Math.min(palette.length - 1, i + 1)); return; }
-      if (key.escape) { setInput(""); setCmdIndex(0); return; }
+      if (key.upArrow) {
+        setCmdIndex((i) => Math.max(0, i - 1));
+        return;
+      }
+      if (key.downArrow) {
+        setCmdIndex((i) => Math.min(palette.length - 1, i + 1));
+        return;
+      }
+      if (key.escape) {
+        setInput("");
+        setCmdIndex(0);
+        return;
+      }
     }
 
     // Delete confirm: Esc to cancel
-    if (deleteConfirm && key.escape) { setDeleteConfirm(false); setInput(""); return; }
+    if (deleteConfirm && key.escape) {
+      setDeleteConfirm(false);
+      setInput("");
+      return;
+    }
 
     // Tab switches panel
-    if (key.tab) { setPanel((p) => (p === "sidebar" ? "chat" : "sidebar")); return; }
+    if (key.tab) {
+      setPanel((p) => (p === "sidebar" ? "chat" : "sidebar"));
+      return;
+    }
 
     // Escape
     if (key.escape) {
@@ -343,9 +468,18 @@ export function Chat({ onNavigate }: ChatProps) {
 
     // Sidebar arrow navigation
     if (panel === "sidebar") {
-      if (key.upArrow) { setSidebarIdx((i) => Math.max(0, i - 1)); return; }
-      if (key.downArrow) { setSidebarIdx((i) => Math.min(conversations.length - 1, i + 1)); return; }
-      if (key.return && sidebarIdx >= 0) { setPanel("chat"); return; }
+      if (key.upArrow) {
+        setSidebarIdx((i) => Math.max(0, i - 1));
+        return;
+      }
+      if (key.downArrow) {
+        setSidebarIdx((i) => Math.min(conversations.length - 1, i + 1));
+        return;
+      }
+      if (key.return && sidebarIdx >= 0) {
+        setPanel("chat");
+        return;
+      }
     }
 
     // Cancel streaming
@@ -355,7 +489,9 @@ export function Chat({ onNavigate }: ChatProps) {
   });
 
   // Reset cmdIndex when palette changes
-  useEffect(() => { setCmdIndex(0); }, [input]);
+  useEffect(() => {
+    setCmdIndex(0);
+  }, [input]);
 
   // ── Render: Sidebar ───────────────────────────────────────────────
 
@@ -364,27 +500,36 @@ export function Chat({ onNavigate }: ChatProps) {
       flexDirection="column"
       width={SIDEBAR_WIDTH}
       borderStyle="round"
-      borderColor={panel === "sidebar" ? "cyan" : "gray"}
-    >
+      borderColor={panel === "sidebar" ? "cyan" : "gray"}>
       <Box paddingX={1} borderStyle="single" borderColor="gray">
-        <Text color="cyan" bold>💬 Chats</Text>
+        <Text color="cyan" bold>
+          💬 Chats
+        </Text>
       </Box>
 
       <Box flexDirection="column" flexGrow={1}>
         {loadingConvs ? (
           <Box paddingX={1} gap={1}>
-            <Text color="cyan"><Spinner type="dots" /></Text>
+            <Text color="cyan">
+              <Spinner type="dots" />
+            </Text>
             <Text color="gray">Loading…</Text>
           </Box>
         ) : conversations.length === 0 ? (
           <Box paddingX={1}>
-            <Text color="gray" dimColor>No conversations yet</Text>
+            <Text color="gray" dimColor>
+              No conversations yet
+            </Text>
           </Box>
         ) : (
           conversations.slice(0, rows - 8).map((conv, idx) => (
             <Box key={conv.id} paddingX={1}>
-              <Text color={idx === sidebarIdx ? "cyan" : "gray"} bold={idx === sidebarIdx} wrap="truncate-end">
-                {idx === sidebarIdx ? "▶ " : "  "}{shortTitle(conv.title, conv.id)}
+              <Text
+                color={idx === sidebarIdx ? "cyan" : "gray"}
+                bold={idx === sidebarIdx}
+                wrap="truncate-end">
+                {idx === sidebarIdx ? "▶ " : "  "}
+                {shortTitle(conv.title, conv.id)}
               </Text>
             </Box>
           ))
@@ -392,9 +537,15 @@ export function Chat({ onNavigate }: ChatProps) {
       </Box>
 
       <Box paddingX={1} flexDirection="column">
-        <Text color="gray" dimColor>──────────────────────</Text>
-        <Text color="gray" dimColor>↑↓ navigate  ↵ open</Text>
-        <Text color="gray" dimColor>Tab → chat panel</Text>
+        <Text color="gray" dimColor>
+          ──────────────────────
+        </Text>
+        <Text color="gray" dimColor>
+          ↑↓ navigate ↵ open
+        </Text>
+        <Text color="gray" dimColor>
+          Tab → chat panel
+        </Text>
       </Box>
     </Box>
   );
@@ -402,14 +553,25 @@ export function Chat({ onNavigate }: ChatProps) {
   // ── Render: Home screen (no messages) ────────────────────────────
 
   const renderHome = () => (
-    <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1} gap={1}>
-      {LOGO.map((line, i) => (
-        <Text key={i} color="cyan" bold>{line}</Text>
+    <Box
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      flexGrow={1}
+      gap={1}>
+      {LOGO.split("\n").map((line, i) => (
+        <Text key={i} color="cyan" bold>
+          {line}
+        </Text>
       ))}
-      <Text color="gray" dimColor>Self-hosted Personal AI Agent</Text>
+      <Text color="gray" dimColor>
+        Self-hosted Personal AI Agent
+      </Text>
       <Box marginTop={1} flexDirection="column" alignItems="center" gap={0}>
         <Text color="gray">How can I help you today?</Text>
-        <Text color="gray" dimColor>Type a message or /help for commands</Text>
+        <Text color="gray" dimColor>
+          Type a message or /help for commands
+        </Text>
       </Box>
     </Box>
   );
@@ -420,7 +582,9 @@ export function Chat({ onNavigate }: ChatProps) {
     if (loadingMsgs) {
       return (
         <Box gap={1} paddingX={2} flexGrow={1}>
-          <Text color="cyan"><Spinner type="dots" /></Text>
+          <Text color="cyan">
+            <Spinner type="dots" />
+          </Text>
           <Text color="gray">Loading messages…</Text>
         </Box>
       );
@@ -430,8 +594,16 @@ export function Chat({ onNavigate }: ChatProps) {
     const allLines: Array<{ color: string; text: string; bold?: boolean }> = [];
     for (const msg of messages) {
       const isUser = msg.role === "user";
-      const label = isUser ? "You" : msg.streaming ? `◌ Nexus [${streamPhase}]` : "◉ Nexus";
-      allLines.push({ color: isUser ? "cyan" : "green", text: label, bold: true });
+      const label = isUser
+        ? "You"
+        : msg.streaming
+          ? `◌ Nexus [${streamPhase}]`
+          : "◉ Nexus";
+      allLines.push({
+        color: isUser ? "cyan" : "green",
+        text: label,
+        bold: true,
+      });
       for (const line of wrapText(msg.content || "…", MSG_WIDTH)) {
         allLines.push({ color: "white", text: "  " + line });
       }
@@ -455,9 +627,20 @@ export function Chat({ onNavigate }: ChatProps) {
   const renderPalette = () => {
     if (deleteConfirm) {
       return (
-        <Box flexDirection="column" marginX={1} borderStyle="round" borderColor="red" paddingX={1}>
-          <Text color="red" bold>⚠ Delete "{shortTitle(activeConv?.title ?? null, activeConv?.id ?? "")}"?</Text>
-          <Text color="gray" dimColor>Type <Text color="yellow">yes</Text> and press Enter to confirm, or Esc to cancel.</Text>
+        <Box
+          flexDirection="column"
+          marginX={1}
+          borderStyle="round"
+          borderColor="red"
+          paddingX={1}>
+          <Text color="red" bold>
+            ⚠ Delete "
+            {shortTitle(activeConv?.title ?? null, activeConv?.id ?? "")}"?
+          </Text>
+          <Text color="gray" dimColor>
+            Type <Text color="yellow">yes</Text> and press Enter to confirm, or
+            Esc to cancel.
+          </Text>
         </Box>
       );
     }
@@ -465,15 +648,25 @@ export function Chat({ onNavigate }: ChatProps) {
     if (!showPalette) return null;
 
     return (
-      <Box flexDirection="column" marginX={1} borderStyle="round" borderColor="cyan" paddingX={1}>
+      <Box
+        flexDirection="column"
+        marginX={1}
+        borderStyle="round"
+        borderColor="cyan"
+        paddingX={1}>
         {palette.map((cmd, i) => {
           const isHighlighted = i === cmdIndex;
           return (
             <Box key={cmd.trigger} gap={2}>
-              <Text color={isHighlighted ? "cyan" : "gray"} bold={isHighlighted}>
-                {isHighlighted ? "▶ " : "  "}{cmd.trigger.padEnd(10)}
+              <Text
+                color={isHighlighted ? "cyan" : "gray"}
+                bold={isHighlighted}>
+                {isHighlighted ? "▶ " : "  "}
+                {cmd.trigger.padEnd(10)}
               </Text>
-              <Text color={isHighlighted ? "white" : "gray"} dimColor={!isHighlighted}>
+              <Text
+                color={isHighlighted ? "white" : "gray"}
+                dimColor={!isHighlighted}>
                 {cmd.description}
               </Text>
             </Box>
@@ -492,18 +685,26 @@ export function Chat({ onNavigate }: ChatProps) {
       borderStyle="round"
       borderColor={isChatFocused ? "cyan" : "gray"}
       paddingX={1}
-      marginX={1}
-    >
+      marginX={1}>
       {streaming ? (
         <Box gap={1}>
-          <Text color="cyan"><Spinner type="dots" /></Text>
-          <Text color="gray">{streamPhase === "thinking" ? "Thinking…" : "Streaming…"}</Text>
-          <Text color="gray" dimColor>Ctrl+C to cancel</Text>
+          <Text color="cyan">
+            <Spinner type="dots" />
+          </Text>
+          <Text color="gray">
+            {streamPhase === "thinking" ? "Thinking…" : "Streaming…"}
+          </Text>
+          <Text color="gray" dimColor>
+            Ctrl+C to cancel
+          </Text>
         </Box>
       ) : (
         <TextInput
           value={input}
-          onChange={(val) => { setInput(val); if (deleteConfirm && !val) setDeleteConfirm(false); }}
+          onChange={(val) => {
+            setInput(val);
+            if (deleteConfirm && !val) setDeleteConfirm(false);
+          }}
           onSubmit={handleSubmit}
           focus={isChatFocused}
           placeholder="Message Nexus… or type / for commands"
@@ -515,14 +716,20 @@ export function Chat({ onNavigate }: ChatProps) {
   // ── Render: Chat panel ────────────────────────────────────────────
 
   const renderChatPanel = () => (
-    <Box flexDirection="column" flexGrow={1} borderStyle="round" borderColor={isChatFocused ? "cyan" : "gray"}>
+    <Box
+      flexDirection="column"
+      flexGrow={1}
+      borderStyle="round"
+      borderColor={isChatFocused ? "cyan" : "gray"}>
       {/* Messages / home */}
       {renderMessages()}
 
       {/* Error */}
       {error && (
         <Box paddingX={2}>
-          <Text color="red" dimColor>⚠ {error}</Text>
+          <Text color="red" dimColor>
+            ⚠ {error}
+          </Text>
         </Box>
       )}
 
@@ -546,10 +753,23 @@ export function Chat({ onNavigate }: ChatProps) {
       <Footer
         hints={
           showPalette
-            ? [{ key: "↑↓", label: "select command" }, { key: "Enter", label: "run" }, { key: "Esc", label: "dismiss" }]
+            ? [
+                { key: "↑↓", label: "select command" },
+                { key: "Enter", label: "run" },
+                { key: "Esc", label: "dismiss" },
+              ]
             : panel === "sidebar"
-            ? [{ key: "↑↓", label: "navigate" }, { key: "↵", label: "open" }, { key: "Tab", label: "→ chat" }, { key: "Esc", label: "menu" }]
-            : [{ key: "Enter", label: "send" }, { key: "/", label: "commands" }, { key: "Tab", label: "← sidebar" }]
+              ? [
+                  { key: "↑↓", label: "navigate" },
+                  { key: "↵", label: "open" },
+                  { key: "Tab", label: "→ chat" },
+                  { key: "Esc", label: "menu" },
+                ]
+              : [
+                  { key: "Enter", label: "send" },
+                  { key: "/", label: "commands" },
+                  { key: "Tab", label: "← sidebar" },
+                ]
         }
       />
     </Box>

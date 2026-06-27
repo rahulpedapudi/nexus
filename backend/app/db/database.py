@@ -2,10 +2,15 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import text
+
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+try:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+except Exception:
+    raise "NO Database URL in env file"
 
 engine = create_engine(
     DATABASE_URL,
@@ -19,6 +24,15 @@ SessionLocal = sessionmaker(
     autoflush=False,
     bind=engine
 )
+
+
+def create_extensions():
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.commit()
+
+
+create_extensions()
 
 Base = declarative_base()
 

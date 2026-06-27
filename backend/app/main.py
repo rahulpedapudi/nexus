@@ -10,10 +10,12 @@ from app.bot.discord_handler import DiscordBot
 from app.core.logging import setup_logging
 from app.api.routes import auth, chat, conversations, keys, memory, task, integrations
 from app.worker.reminder import reminder_loop
+from app.core.config import settings
 
 # Register tools
 from app.agent.tools import tasks, memories
 from app.agent.tools.integrations.google import calendar
+
 
 tasks.register()
 memories.register()
@@ -23,8 +25,8 @@ load_dotenv()
 setup_logging()
 
 
-bot = NexusBot(token=os.getenv("TELEGRAM_TOKEN"))
-discord_bot = DiscordBot(token=os.getenv("DISCORD_TOKEN"))
+bot = NexusBot(token=settings.TELEGRAM_TOKEN)
+discord_bot = DiscordBot(token=settings.DISCORD_TOKEN)
 
 
 @asynccontextmanager

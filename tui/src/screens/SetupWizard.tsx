@@ -7,20 +7,20 @@ import SelectInput from "ink-select-input";
 import { StepIndicator } from "../components/StepIndicator.js";
 import { Footer } from "../components/Footer.js";
 import { pingHealth, setupUser, login, createKey } from "../api/client.js";
-import { writeConfig } from "../config.js";
+import { writeConfig, writeCredentials } from "../config.js";
 
 // ---------------------------------------------------------------------------
 // Step definitions
 // ---------------------------------------------------------------------------
 
 // ! i dont think connection step should be present
-type WizardStep = "welcome" | "connection" | "account" | "llm" | "done";
+type WizardStep = "welcome" | "account" | "llm" | "done";
 
-const STEPS: WizardStep[] = ["welcome", "connection", "account", "llm", "done"];
+const STEPS: WizardStep[] = ["welcome", "account", "llm", "done"];
 
 const STEP_LABELS: Record<WizardStep, string> = {
   welcome: "Welcome",
-  connection: "Connection",
+  // connection: "Connection",
   account: "Account",
   llm: "LLM Provider",
   done: "Done",
@@ -30,6 +30,11 @@ const STEP_LABELS: Record<WizardStep, string> = {
 const LLM_PROVIDERS = [
   { label: "Groq", value: "groq" },
   { label: "OpenRouter", value: "openrouter" },
+  { label: "Skip for now", value: "skip" },
+];
+
+const EMBEDDING_MODELS = [
+  { label: "Gemini Embedding 2", value: "gemini-embedding-2" },
   { label: "Skip for now", value: "skip" },
 ];
 
@@ -83,8 +88,15 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   const [savedUsername, setSavedUsername] = useState("");
 
   // --- LLM step ---
+  const [llmProviderDone, setLlmProviderDone] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [selectedEmbeddingModel, setSelectedEmbeddingModel] = useState<
+    string | null
+  >(null);
+
   const [apiKey, setApiKey] = useState("");
+  const [embeddingApiKey, setEmbeddingApiKey] = useState("");
+
   const [savingKey, setSavingKey] = useState(false);
   const [llmError, setLlmError] = useState("");
 
@@ -105,6 +117,20 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
         setAccountMode("pick");
         setAccountError("");
         return;
+      }
+      // Inside llm step: go back to previous sub-step
+      if (step === "llm") {
+        if (llmProviderDone) {
+          setLlmProviderDone(false);
+          setLlmError("");
+          return;
+        }
+        if (selectedProvider) {
+          setSelectedProvider(null);
+          setApiKey("");
+          setLlmError("");
+          return;
+        }
       }
       // onback sets screen to chat if config is ready and main-menu if not ready
       onBack();
@@ -143,15 +169,15 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
         </Text>
         <Text color="gray" dimColor>
           {" "}
-          • Verify API connectivity
-        </Text>
-        <Text color="gray" dimColor>
-          {" "}
           • Sign in or create an account
         </Text>
         <Text color="gray" dimColor>
           {" "}
           • Configure your LLM provider
+        </Text>
+        <Text color="gray" dimColor>
+          {" "}
+          • Configure your Gateways
         </Text>
       </Box>
       <Box marginTop={1}>
@@ -172,66 +198,64 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   // Step: Connection
   // -------------------------------------------------------------------------
 
-  const handleConnectionSubmit = useCallback(async () => {
-    setChecking(true);
-    setConnectionStatus("idle");
-    setConnectionError("");
-    const result = await pingHealth(baseUrl);
-    setChecking(false);
-    if (result.ok) {
-      setConnectionStatus("ok");
-      setTimeout(() => nextStep(), 800);
-    } else {
-      setConnectionStatus("error");
-      setConnectionError(
-        `Could not reach ${baseUrl} — check the URL and try again`,
-      );
-    }
-  }, [baseUrl, nextStep]);
+  // const handleConnectionSubmit = useCallback(async () => {
+  //   setChecking(true);
+  //   setConnectionStatus("idle");
+  //   setConnectionError("");
+  //   const result = await pingHealth(baseUrl);
+  //   setChecking(false);
+  //   if (result.ok) {
+  //     setConnectionStatus("ok");
+  //     setTimeout(() => nextStep(), 800);
+  //   } else {
+  //     setConnectionStatus("error");
+  //     setConnectionError(
+  //       `Could not reach ${baseUrl} — check the URL and try again`,
+  //     );
+  //   }
+  // }, [baseUrl, nextStep]);
 
-  const renderConnection = () => (
-    <Box flexDirection="column" gap={1}>
-      <Text color="white" bold>
-        Nexus API URL
-      </Text>
-      <Text color="gray" dimColor>
-        Enter the base URL of your Nexus instance:
-      </Text>
-      <Box
-        borderStyle="round"
-        borderColor={connectionStatus === "error" ? "red" : "cyan"}
-        paddingX={1}>
-        <TextInput
-          value={baseUrl}
-          onChange={setBaseUrl}
-          onSubmit={handleConnectionSubmit}
-          placeholder="http://localhost:8000"
-        />
-      </Box>
+  // const renderConnection = () => (
+  //   <Box flexDirection="column" gap={1}>
+  //     <Text color="white" bold>
+  //       Test connectivity for your agent...
+  //     </Text>
+  //     <Text color="white" dimColor></Text>
+  //     <Box
+  //       borderStyle="round"
+  //       borderColor={connectionStatus === "error" ? "red" : "cyan"}
+  //       paddingX={1}>
+  //       <TextInput
+  //         value={baseUrl}
+  //         onChange={setBaseUrl}
+  //         onSubmit={handleConnectionSubmit}
+  //         placeholder="http://localhost:8000"
+  //       />
+  //     </Box>
 
-      {checking && (
-        <Box gap={1}>
-          <Text color="cyan">
-            <Spinner type="dots" />
-          </Text>
-          <Text color="cyan">Connecting to {baseUrl}…</Text>
-        </Box>
-      )}
-      {connectionStatus === "ok" && (
-        <Text color="green">✓ Connected successfully!</Text>
-      )}
-      {connectionStatus === "error" && (
-        <Text color="red">✗ {connectionError}</Text>
-      )}
+  //     {checking && (
+  //       <Box gap={1}>
+  //         <Text color="cyan">
+  //           <Spinner type="dots" />
+  //         </Text>
+  //         <Text color="cyan">Connecting to {baseUrl}…</Text>
+  //       </Box>
+  //     )}
+  //     {connectionStatus === "ok" && (
+  //       <Text color="green">✓ Connected successfully!</Text>
+  //     )}
+  //     {connectionStatus === "error" && (
+  //       <Text color="red">✗ {connectionError}</Text>
+  //     )}
 
-      <Footer
-        hints={[
-          { key: "Enter", label: "test connection" },
-          { key: "Esc", label: "back" },
-        ]}
-      />
-    </Box>
-  );
+  //     <Footer
+  //       hints={[
+  //         { key: "Enter", label: "test connection" },
+  //         { key: "Esc", label: "back" },
+  //       ]}
+  //     />
+  //   </Box>
+  // );
 
   // -------------------------------------------------------------------------
   // Step: Account — mode picker
@@ -525,88 +549,189 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   // Step: LLM Provider
   // -------------------------------------------------------------------------
 
-  const handleLLMProviderSelect = useCallback(
-    (item: { value: string }) => {
-      if (item.value === "skip") {
-        nextStep();
-        return;
-      }
-      setSelectedProvider(item.value);
-    },
-    [nextStep],
-  );
+  const handleLLMProviderSelect = useCallback((item: { value: string }) => {
+    if (item.value === "skip") {
+      setLlmProviderDone(true);
+      return;
+    }
+    setSelectedProvider(item.value);
+  }, []);
 
   const handleLLMKeySubmit = useCallback(async () => {
     if (!selectedProvider || !apiKey) return;
     setSavingKey(true);
     setLlmError("");
     try {
-      await createKey({ provider: selectedProvider, key: apiKey });
+      // await createKey({ provider: selectedProvider, key: apiKey });
+      writeCredentials({
+        LLM_PROVIDER: selectedProvider,
+        [selectedProvider === "groq" ? "GROQ_API_KEY" : "OPENROUTER_API_KEY"]:
+          apiKey,
+      });
+
+      setLlmProviderDone(true);
+    } catch (err: unknown) {
+      setLlmError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingKey(false);
+    }
+  }, [selectedProvider, apiKey]);
+
+  const handleEmbeddingModelSelect = useCallback(
+    (item: { value: string }) => {
+      if (item.value === "skip") {
+        nextStep();
+        return;
+      }
+      setSelectedEmbeddingModel(item.value);
+    },
+    [nextStep],
+  );
+
+  const handleEmbeddingApiKeySubmit = useCallback(async () => {
+    if (!selectedEmbeddingModel || !embeddingApiKey) return;
+    setSavingKey(true);
+    setLlmError("");
+    try {
+      // await createKey({ provider: selectedEmbeddingModel, key: embeddingApiKey });
+      writeCredentials({
+        EMBEDDING_MODEL: selectedEmbeddingModel,
+        GOOGLE_API_KEY: embeddingApiKey,
+      });
+
       nextStep();
     } catch (err: unknown) {
       setLlmError(err instanceof Error ? err.message : String(err));
     } finally {
       setSavingKey(false);
     }
-  }, [selectedProvider, apiKey, nextStep]);
+  }, [selectedEmbeddingModel, embeddingApiKey, nextStep]);
 
   const renderLLM = () => (
     <Box flexDirection="column" gap={1}>
-      <Text color="white" bold>
-        LLM Provider
-      </Text>
-      <Text color="gray" dimColor>
-        Select your language model provider:
-      </Text>
-
-      {!selectedProvider ? (
-        <SelectInput
-          items={LLM_PROVIDERS}
-          onSelect={handleLLMProviderSelect}
-          indicatorComponent={({ isSelected }) => (
-            <Text color="cyan">{isSelected ? "▶ " : "  "}</Text>
-          )}
-          itemComponent={({ isSelected, label }) => (
-            <Text color={isSelected ? "cyan" : "white"} bold={isSelected}>
-              {label}
-            </Text>
-          )}
-        />
-      ) : (
-        <Box flexDirection="column" gap={1}>
-          <Text color="green">
-            Provider: <Text bold>{selectedProvider}</Text>
+      {!llmProviderDone ? (
+        <>
+          <Text color="white" bold>
+            LLM Provider
           </Text>
           <Text color="gray" dimColor>
-            Enter your API key:
+            Select your language model provider:
           </Text>
-          <Box borderStyle="round" borderColor="cyan" paddingX={1}>
-            <TextInput
-              value={apiKey}
-              onChange={setApiKey}
-              onSubmit={handleLLMKeySubmit}
-              mask="*"
-              placeholder="sk-..."
+
+          {!selectedProvider ? (
+            <SelectInput
+              items={LLM_PROVIDERS}
+              onSelect={handleLLMProviderSelect}
+              indicatorComponent={({ isSelected }) => (
+                <Text color="cyan">{isSelected ? "▶ " : "  "}</Text>
+              )}
+              itemComponent={({ isSelected, label }) => (
+                <Text color={isSelected ? "cyan" : "white"} bold={isSelected}>
+                  {label}
+                </Text>
+              )}
             />
-          </Box>
-          {savingKey && (
-            <Box gap={1}>
-              <Text color="cyan">
-                <Spinner type="dots" />
+          ) : (
+            <Box flexDirection="column" gap={1}>
+              <Text color="green">
+                Provider: <Text bold>{selectedProvider}</Text>
               </Text>
-              <Text color="cyan">Saving key…</Text>
+              <Text color="gray" dimColor>
+                Enter your API key:
+              </Text>
+              <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+                <TextInput
+                  value={apiKey}
+                  onChange={setApiKey}
+                  onSubmit={handleLLMKeySubmit}
+                  mask="*"
+                  placeholder="sk-..."
+                />
+              </Box>
+              {savingKey && (
+                <Box gap={1}>
+                  <Text color="cyan">
+                    <Spinner type="dots" />
+                  </Text>
+                  <Text color="cyan">Saving key…</Text>
+                </Box>
+              )}
+              {llmError && <Text color="red">✗ {llmError}</Text>}
             </Box>
           )}
-          {llmError && <Text color="red">✗ {llmError}</Text>}
-        </Box>
-      )}
 
-      <Footer
-        hints={[
-          { key: "Enter", label: selectedProvider ? "save key" : "select" },
-          { key: "Esc", label: "back" },
-        ]}
-      />
+          <Footer
+            hints={[
+              {
+                key: "Enter",
+                label: selectedProvider ? "save key" : "select",
+              },
+              { key: "Esc", label: "back" },
+            ]}
+          />
+        </>
+      ) : (
+        <>
+          <Text color="white" bold>
+            Embedding Model
+          </Text>
+          <Text color="gray" dimColor>
+            Select your embedding model:
+          </Text>
+
+          {!selectedEmbeddingModel ? (
+            <SelectInput
+              items={EMBEDDING_MODELS}
+              onSelect={handleEmbeddingModelSelect}
+              indicatorComponent={({ isSelected }) => (
+                <Text color="cyan">{isSelected ? "▶ " : "  "}</Text>
+              )}
+              itemComponent={({ isSelected, label }) => (
+                <Text color={isSelected ? "cyan" : "white"} bold={isSelected}>
+                  {label}
+                </Text>
+              )}
+            />
+          ) : (
+            <Box flexDirection="column" gap={1}>
+              <Text color="green">
+                Provider: <Text bold>{selectedEmbeddingModel}</Text>
+              </Text>
+              <Text color="gray" dimColor>
+                Enter your API key:
+              </Text>
+              <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+                <TextInput
+                  value={embeddingApiKey}
+                  onChange={setEmbeddingApiKey}
+                  onSubmit={handleEmbeddingApiKeySubmit}
+                  mask="*"
+                  placeholder="sk-..."
+                />
+              </Box>
+              {savingKey && (
+                <Box gap={1}>
+                  <Text color="cyan">
+                    <Spinner type="dots" />
+                  </Text>
+                  <Text color="cyan">Saving key…</Text>
+                </Box>
+              )}
+              {llmError && <Text color="red">✗ {llmError}</Text>}
+            </Box>
+          )}
+
+          <Footer
+            hints={[
+              {
+                key: "Enter",
+                label: selectedEmbeddingModel ? "save key" : "select",
+              },
+              { key: "Esc", label: "back" },
+            ]}
+          />
+        </>
+      )}
     </Box>
   );
 
@@ -680,7 +805,7 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
 
   const STEP_RENDERERS: Record<WizardStep, () => JSX.Element> = {
     welcome: renderWelcome,
-    connection: renderConnection,
+    // connection: renderConnection,
     account: renderAccount,
     llm: renderLLM,
     done: renderDone,

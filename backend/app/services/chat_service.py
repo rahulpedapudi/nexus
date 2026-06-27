@@ -21,7 +21,7 @@ from app.services import memory_extractor
 
 from app.services import llm_service
 
-load_dotenv()
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +147,9 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     total_t0 = time.perf_counter()
 
     # api_key = _get_api_key(db, current_user)
-    api_key = os.getenv("GROQ_API_KEY")
+
+    #! NEED TO REFACTOR THIS
+    api_key = settings.GROQ_API_KEY
 
     conversation = _get_conversation(data, db, current_user)
     _save_user_message(data, conversation, db, current_user)
@@ -220,7 +222,8 @@ async def stream_events(
     try:
         # gets user's groq api key
         # api_key = _get_api_key(db, current_user)
-        api_key = os.getenv("GROQ_API_KEY")
+        #! NEED TO REFACTOR THIS
+        api_key = settings.GROQ_API_KEY
 
         # gets conversation - single conv_id if source is telegram, else auto-create a new conversation if no data.conv_id supplied
         conversation = _get_conversation(data, db, current_user)
