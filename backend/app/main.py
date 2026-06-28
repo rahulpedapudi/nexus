@@ -1,55 +1,52 @@
 from contextlib import asynccontextmanager
-import asyncio
-import os
-from dotenv import load_dotenv
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.db.database import Base, engine
-from app.bot.telegram_handler import NexusBot
-from app.bot.discord_handler import DiscordBot
+from app.bot.gateway_manager import gateway_manager
+from app.core.credentials import creds_store
+from app.bot.telegram_handler import start_telegram, stop_telegram
+from app.bot.discord_handler import start_discord, stop_discord
 from app.core.logging import setup_logging
-from app.api.routes import auth, chat, conversations, keys, memory, task, integrations
-from app.worker.reminder import reminder_loop
-from app.core.config import settings
+from app.api.routes import auth, chat, conversations, keys, memory, task, integrations, settings
+
 
 # Register tools
 from app.agent.tools import tasks, memories
 from app.agent.tools.integrations.google import calendar
 
-
 tasks.register()
 memories.register()
 calendar.register()
 
-load_dotenv()
 setup_logging()
-
-
-bot = NexusBot(token=settings.TELEGRAM_TOKEN)
-discord_bot = DiscordBot(token=settings.DISCORD_TOKEN)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    discord_task = asyncio.create_task(discord_bot.start())
-    reminder_task = asyncio.create_task(
-        reminder_loop(discord_client=discord_bot.client)
-    )
-    webhook_url = os.getenv("WEBHOOK_URL")
-    if webhook_url:
-        await bot.app.bot.set_webhook(url=f"{webhook_url}/webhook")
-    else:
-        # local dev — start polling in background
-        await bot.app.initialize()
-        await bot.app.start()
-        await bot.app.updater.start_polling()
-    yield
-    reminder_task.cancel()
-    await discord_bot.stop()
-    discord_task.cancel()
-    await bot.app.updater.stop()
-    await bot.app.stop()
 
+    # registering the available gateways to the gateway manager
+    gateway_manager.register(
+        "telegram", start_telegram, stop_telegram)
+    gateway_manager.register(
+        "discord", start_discord, stop_discord)
+
+    # get the list of gateways that are enabled to run at startup automatically; gets the list from the credentials.json file
+    enabled_gateways = creds_store.get("ENABLED_GATEWAYS")
+
+    # start all the gateways that are enabled and has token, raise exception if token not found for any enabled gateway
+    for gateway in enabled_gateways:
+        token = creds_store.get_gateway_token(gateway)
+        if token:
+            await gateway_manager.enable(gateway, token)
+        else:
+            raise Exception(f"Token not found for gateway: {gateway}")
+    yield
+    # cleanup on shutdown
+    await gateway_manager.shutdown()
+
+
+# app = FastAPI()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -106,12 +103,10 @@ app.include_router(
     tags=["integrations"]
 )
 
-# @app.post("/webhook")
-# async def telegram_webhook(request: Request):
-#     data = await request.json()
-#     update = Update.de_json(data, bot.app.bot)
-#     await bot.app.process_update(update)
-#     return {"ok": True}
+app.include_router(
+    router=settings.router,
+    tags=["settings"]
+)
 
 
 @app.head("/")

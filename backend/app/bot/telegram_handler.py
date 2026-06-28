@@ -99,7 +99,7 @@ MIN_NEW_CHARS = 8           # skip update if fewer new chars than this
 
 # ── Bot class ─────────────────────────────────────────────────────────────────
 
-class NexusBot:
+class TelegramBot:
     def __init__(self, token: str):
         request = HTTPXRequest(
             read_timeout=30, write_timeout=30, connect_timeout=10)
@@ -114,6 +114,15 @@ class NexusBot:
             .build()
         )
         self._register_handlers()
+
+    async def start_bot(self):
+        await self.app.initialize()
+        await self.app.start()
+        await self.app.updater.start_polling()
+
+    async def stop_bot(self):
+        await self.app.updater.stop()
+        await self.app.stop()
 
     def get_db(self):
         return SessionLocal()
@@ -286,3 +295,21 @@ class NexusBot:
             )
         finally:
             db.close()
+
+
+_bot_instance: TelegramBot | None = None
+
+
+# starting a global telegram bot that runs in the background
+async def start_telegram(token: str):
+    global _bot_instance
+    _bot_instance = TelegramBot(token)
+    await _bot_instance.start_bot()
+
+
+# stops the telegram global instance
+async def stop_telegram():
+    global _bot_instance
+    if _bot_instance is not None:
+        await _bot_instance.stop_bot()
+        _bot_instance = None

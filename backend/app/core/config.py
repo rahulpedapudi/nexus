@@ -1,4 +1,4 @@
-from app.core.credentials import CredentialStore
+from app.core.credentials import creds_store
 from pydantic_settings import BaseSettings
 import os
 from dotenv import load_dotenv
@@ -8,8 +8,6 @@ load_dotenv()
 
 JWT_SECRET = os.getenv("JWT_SECRET")
 
-creds = CredentialStore()
-
 
 class Settings(BaseSettings):
     # app settings
@@ -18,19 +16,22 @@ class Settings(BaseSettings):
     SITE_URL: str = ""
 
     # llm settings
-    LLM_PROVIDER: str = creds.get("LLM_PROVIDER") or "groq"
-    GROQ_API_KEY: str = creds.get("GROQ_API_KEY") or ""
-    OPENROUTER_API_KEY: str = creds.get("OPENROUTER_API_KEY") or ""
+    LLM_PROVIDER: str = creds_store.get("LLM_PROVIDER") or "groq"
+    GROQ_API_KEY: str = creds_store.get("GROQ_API_KEY") or ""
+    OPENROUTER_API_KEY: str = creds_store.get("OPENROUTER_API_KEY") or ""
 
-    GROQ_DEFAULT_MODEL: str = creds.get(
+    GROQ_DEFAULT_MODEL: str = creds_store.get(
         "GROQ_DEFAULT_MODEL") or "openai/gpt-oss-120b"
-    OPENROUTER_DEFAULT_MODEL: str = creds.get(
+    OPENROUTER_DEFAULT_MODEL: str = creds_store.get(
         "OPENROUTER_DEFAULT_MODEL") or "openrouter/free"
-    GOOGLE_API_KEY: str = creds.get("GOOGLE_API_KEY") or ""
-    EMBEDDING_MODEL: str = creds.get("EMBEDDING_MODEL") or "gemini-embedding-2"
+    GOOGLE_API_KEY: str = creds_store.get("GOOGLE_API_KEY") or ""
+    EMBEDDING_MODEL: str = creds_store.get(
+        "EMBEDDING_MODEL") or "gemini-embedding-2"
 
-    TELEGRAM_TOKEN: str = creds.get("TELEGRAM_TOKEN") or ""
-    DISCORD_TOKEN: str = creds.get("DISCORD_TOKEN") or ""
+    ENABLED_GATEWAYS: list[str] = creds_store.get("ENABLED_GATEWAYS") or []
+
+    # TELEGRAM_TOKEN: str = creds_store.get("TELEGRAM_TOKEN") or ""
+    # DISCORD_TOKEN: str = creds_store.get("DISCORD_TOKEN") or ""
 
     # auth settings
     SECRET_KEY: str = JWT_SECRET
