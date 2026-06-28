@@ -1,12 +1,12 @@
-from sqlalchemy.orm import Session
-from app.models.user import User
-from app.core.config import settings
-from typing import AsyncGenerator
-from dotenv import load_dotenv
-from datetime import datetime
 import json
 import logging
 import time
+from typing import AsyncGenerator
+from datetime import datetime
+from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+
+from app.models.user import User
 
 from app.agent.prompts import SYSTEM_PROMPT, DISCORD_FORMAT_ADDENDUM, TELEGRAM_ADDENDUM
 
@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 # Provider singleton
-_provider = build_llm_provider(settings)
+def get_provider():
+    _provider = build_llm_provider()
+    return _provider
 
 
 def _build_system_messages(user: User, source: str = "web") -> list[dict]:
@@ -55,6 +57,8 @@ async def get_llm_response(
     messages = _build_system_messages(user, source=source) + recent_messages
     total_t0 = time.perf_counter()
     loop_count = 0
+
+    _provider = get_provider()
 
     try:
         while True:
@@ -141,6 +145,8 @@ async def stream_response(
 
     total_t0 = time.perf_counter()
     loop_count = 0
+
+    _provider = get_provider()
 
     yield {"type": "status", "phase": "thinking"}
 

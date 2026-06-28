@@ -5,7 +5,7 @@ import Spinner from "ink-spinner";
 
 import { Footer } from "../components/Footer.js";
 import { getSettings } from "../api/client.js";
-import { readConfig } from "../config.js";
+import { readConfig, readCredentials, writeCredentials } from "../config.js";
 import type { SettingsGroup, SettingEntry } from "../api/types.js";
 
 interface ConfigEditorProps {
@@ -43,21 +43,42 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
     setLoading(true);
     setError("");
     try {
-      const data = await getSettings();
-      // Inject server config
-      const cfg = readConfig();
-      data.unshift({
-        category: "Connection",
-        entries: [
-          { key: "base_url", label: "API URL", value: cfg.baseUrl ?? "—" },
-          {
-            key: "token",
-            label: "Auth Token",
-            value: cfg.token ? "••••••••" : "—",
-          },
-          { key: "username", label: "Username", value: cfg.username ?? "—" },
-        ],
-      });
+      const cfg = readCredentials();
+      const data = [
+        {
+          category: "LLM Configuration",
+          entries: [
+            {
+              key: "llm_provider",
+              label: "LLM Provider",
+              value: cfg.LLM_PROVIDER ?? "—",
+            },
+            {
+              key: "groq_api_key",
+              label: "Groq API Key",
+              masked: true,
+              value: cfg.GROQ_API_KEY ?? "—",
+            },
+            {
+              key: "openrouter_api_key",
+              label: "OpenRouter API Key",
+              masked: true,
+              value: cfg.OPENROUTER_API_KEY ?? "—",
+            },
+            {
+              key: "embedding_model",
+              label: "Embedding Model",
+              value: cfg.EMBEDDING_MODEL ?? "—",
+            },
+            {
+              key: "google_api_key",
+              label: "Google API Key",
+              masked: true,
+              value: cfg.GOOGLE_API_KEY ?? "—",
+            },
+          ],
+        },
+      ];
       setGroups(data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -131,28 +152,19 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
     setSaving(true);
     setSavedKey(null);
     try {
-      const cfg = readConfig();
+      // const cfg = readConfig();
+      const cfg = readCredentials();
 
-      if (entry.key === "base_url") {
-        const { writeConfig } = await import("../config.js");
-        writeConfig({ baseUrl: editing.value });
-      } else if (entry.key === "token") {
-        const { writeConfig } = await import("../config.js");
-        writeConfig({ token: editing.value });
-      } else if (entry.key === "username") {
-        const { writeConfig } = await import("../config.js");
-        writeConfig({ username: editing.value });
-      } else {
-        // Generic PATCH via /keys/create for LLM keys
-        await fetch(`${cfg.baseUrl ?? "http://localhost:8000"}/keys/create`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cfg.token ?? ""}`,
-          },
-          body: JSON.stringify({ provider: entry.key, key: editing.value }),
-        });
-      }
+      if (entry.key === "llm_provider")
+        writeCredentials({ LLM_PROVIDER: editing.value });
+      else if (entry.key === "groq_api_key")
+        writeCredentials({ GROQ_API_KEY: editing.value });
+      else if (entry.key === "openrouter_api_key")
+        writeCredentials({ OPENROUTER_API_KEY: editing.value });
+      else if (entry.key === "embedding_model")
+        writeCredentials({ EMBEDDING_MODEL: editing.value });
+      else if (entry.key === "google_api_key")
+        writeCredentials({ GOOGLE_API_KEY: editing.value });
 
       // Update local state
       setGroups((prev) =>
@@ -251,6 +263,9 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
                   <Text color={isCursor ? "cyan" : "gray"}>
                     {isCursor ? "▶" : " "}
                   </Text>
+                  <Text color={isCursor ? "cyan" : "gray"}>
+                    {entry.label}:{" "}
+                  </Text>
                   <Text color={isCursor ? "cyan" : "white"} bold={isCursor}>
                     {/* {entry.label.padEnd(22)} */}
                   </Text>
@@ -275,7 +290,11 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
                     </Box>
                   ) : (
                     <Text color={justSaved ? "green" : "white"}>
-                      {justSaved ? `✓ Saved` : entry.value}
+                      {justSaved
+                        ? `✓ Saved`
+                        : entry.masked
+                          ? "••••••••"
+                          : entry.value}
                     </Text>
                   )}
                 </Box>

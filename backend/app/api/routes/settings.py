@@ -57,3 +57,28 @@ async def disable_gateway(gateway: str):
         dict: The status of the gateway
     """
     return await settings_service.disable_gateway(gateway)
+
+
+@router.post("/llm/set/{provider}")
+def set_llm(provider: str):
+    """
+    Sets the LLM provider.
+
+    Args:
+        provider (str): The name of the LLM provider
+
+    Returns:
+        dict: The status of the LLM provider
+    """
+    return settings_service.set_llm(provider)
+
+
+@router.get("/llm")
+def get_llm():
+    """
+    Returns the current LLM provider.
+
+    Returns:
+        dict: The current LLM provider
+    """
+    return settings_service.get_llm()

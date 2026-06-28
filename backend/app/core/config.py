@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     SITE_URL: str = ""
 
     # llm settings
-    LLM_PROVIDER: str = creds_store.get("LLM_PROVIDER") or "groq"
+    LLM_PROVIDER: str = creds_store.get("LLM_PROVIDER") or ""
     GROQ_API_KEY: str = creds_store.get("GROQ_API_KEY") or ""
     OPENROUTER_API_KEY: str = creds_store.get("OPENROUTER_API_KEY") or ""
 

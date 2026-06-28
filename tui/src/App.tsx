@@ -56,8 +56,8 @@ export function App({ initialScreen, hasConfig }: AppProps) {
         />
       );
 
-    case "dashboard":
-      return <Dashboard onBack={backToChat} />;
+    // case "dashboard":
+    // return <Dashboard onBack={backToChat} />;
 
     case "integrations":
       return <Integrations onBack={backToChat} />;

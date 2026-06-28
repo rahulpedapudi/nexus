@@ -16,6 +16,7 @@ import type {
   MessageResponse,
   Screen,
 } from "../api/types.js";
+import { writeCredentials } from "../config.js";
 
 // ---------------------------------------------------------------------------
 // Slash commands
@@ -47,6 +48,11 @@ const COMMANDS: SlashCommand[] = [
     trigger: "/menu",
     label: "Main menu",
     description: "Navigate to the main menu",
+  },
+  {
+    trigger: "/provider",
+    label: "LLM Provider",
+    description: "Change LLM provider",
   },
   { trigger: "/help", label: "Help", description: "List all slash commands" },
 ];
@@ -314,6 +320,20 @@ export function Chat({ onNavigate }: ChatProps) {
           setSidebarIdx(-1);
           setPanel("chat");
           break;
+
+        case "/provider": {
+          const provider = args.trim();
+          if (!provider) {
+            setError("Usage: /provider <provider>");
+            break;
+          }
+          try {
+            writeCredentials({ LLM_PROVIDER: provider });
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+          }
+          break;
+        }
 
         case "/rename": {
           if (!activeConv) {

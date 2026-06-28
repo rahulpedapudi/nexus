@@ -84,3 +84,15 @@ async def disable_gateway(gateway: str):
         return {"status": f"{gateway} stopped"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def set_llm(provider: str):
+    try:
+        creds_store.set("LLM_PROVIDER", provider)
+        return {"status": f"{provider} set as LLM provider"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_llm():
+    return {"llm": creds_store.get("LLM_PROVIDER")}

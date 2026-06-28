@@ -96,6 +96,7 @@ export interface SettingsGroup {
 
 export interface SettingEntry {
   key: string;
+  masked?: boolean;
   label: string;
   value: string;
   description?: string;
@@ -105,7 +106,7 @@ export type Screen =
   | "chat"
   | "main-menu"
   | "setup-wizard"
-  | "dashboard"
+  // | "dashboard"
   | "integrations"
   | "config-editor";
 
