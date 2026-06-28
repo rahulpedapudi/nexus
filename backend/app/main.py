@@ -35,18 +35,20 @@ async def lifespan(app: FastAPI):
     enabled_gateways = creds_store.get("ENABLED_GATEWAYS")
 
     # start all the gateways that are enabled and has token, raise exception if token not found for any enabled gateway
-    for gateway in enabled_gateways:
-        token = creds_store.get_gateway_token(gateway)
-        if token:
-            await gateway_manager.enable(gateway, token)
-        else:
-            raise Exception(f"Token not found for gateway: {gateway}")
-    yield
-    # cleanup on shutdown
-    await gateway_manager.shutdown()
+    if enabled_gateways:
+        for gateway in enabled_gateways:
+            token = creds_store.get_gateway_token(gateway)
+            if token:
+                await gateway_manager.enable(gateway, token)
+            else:
+                raise Exception(f"Token not found for gateway: {gateway}")
+        yield
+        # cleanup on shutdown
+        await gateway_manager.shutdown()
+    else:
+        # No gateways enabled
+        yield
 
-
-# app = FastAPI()
 
 app = FastAPI(lifespan=lifespan)
 

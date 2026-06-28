@@ -6,7 +6,14 @@ import SelectInput from "ink-select-input";
 
 import { StepIndicator } from "../components/StepIndicator.js";
 import { Footer } from "../components/Footer.js";
-import { pingHealth, setupUser, login, createKey } from "../api/client.js";
+import {
+  pingHealth,
+  setupUser,
+  login,
+  createKey,
+  getGatewayLinkToken,
+  enableGateway,
+} from "../api/client.js";
 import { writeConfig, writeCredentials } from "../config.js";
 
 // ---------------------------------------------------------------------------
@@ -14,15 +21,16 @@ import { writeConfig, writeCredentials } from "../config.js";
 // ---------------------------------------------------------------------------
 
 // ! i dont think connection step should be present
-type WizardStep = "welcome" | "account" | "llm" | "done";
+type WizardStep = "welcome" | "account" | "llm" | "gateway" | "done";
 
-const STEPS: WizardStep[] = ["welcome", "account", "llm", "done"];
+const STEPS: WizardStep[] = ["welcome", "account", "llm", "gateway", "done"];
 
 const STEP_LABELS: Record<WizardStep, string> = {
   welcome: "Welcome",
   // connection: "Connection",
   account: "Account",
   llm: "LLM Provider",
+  gateway: "Gateway Config",
   done: "Done",
 };
 
@@ -61,10 +69,10 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   const [baseUrl, setBaseUrl] = useState("http://localhost:8000");
   const [checking, setChecking] = useState(false);
 
-  const [connectionStatus, setConnectionStatus] = useState<
-    "idle" | "ok" | "error"
-  >("idle");
-  const [connectionError, setConnectionError] = useState("");
+  // const [connectionStatus, setConnectionStatus] = useState<
+  //   "idle" | "ok" | "error"
+  // >("idle");
+  // const [connectionError, setConnectionError] = useState("");
 
   // --- Account step ---
   const [accountMode, setAccountMode] = useState<AccountMode>("pick");
@@ -100,6 +108,27 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   const [savingKey, setSavingKey] = useState(false);
   const [llmError, setLlmError] = useState("");
 
+  // --- Gateway step ---
+  type GatewayPlatform = "telegram" | "discord";
+  const GATEWAY_ITEMS = [
+    { label: "📨  Telegram", value: "telegram" },
+    { label: "🎮  Discord", value: "discord" },
+    { label: "⏭  Skip for now", value: "skip" },
+  ];
+  const GATEWAY_DOCS: Record<GatewayPlatform, string> = {
+    telegram: "https://docs.nexus.example/gateways/telegram",
+    discord: "https://docs.nexus.example/gateways/discord",
+  };
+
+  type GatewaySubStep = "pick" | "enter-token" | "show-link";
+  const [gatewaySubStep, setGatewaySubStep] = useState<GatewaySubStep>("pick");
+  const [selectedGateway, setSelectedGateway] =
+    useState<GatewayPlatform | null>(null);
+  const [gatewayBotToken, setGatewayBotToken] = useState("");
+  const [gatewayLinkToken, setGatewayLinkToken] = useState("");
+  const [gatewayLoading, setGatewayLoading] = useState(false);
+  const [gatewayError, setGatewayError] = useState("");
+
   const step = STEPS[stepIdx]!;
 
   // -------------------------------------------------------------------------
@@ -129,6 +158,22 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
           setSelectedProvider(null);
           setApiKey("");
           setLlmError("");
+          return;
+        }
+      }
+      // Inside gateway step: go back through sub-steps
+      if (step === "gateway") {
+        if (gatewaySubStep === "show-link") {
+          setGatewaySubStep("enter-token");
+          setGatewayLinkToken("");
+          setGatewayError("");
+          return;
+        }
+        if (gatewaySubStep === "enter-token") {
+          setGatewaySubStep("pick");
+          setSelectedGateway(null);
+          setGatewayBotToken("");
+          setGatewayError("");
           return;
         }
       }
@@ -736,6 +781,185 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   );
 
   // -------------------------------------------------------------------------
+  // Step: Gateway Configuration
+  // -------------------------------------------------------------------------
+
+  const handleGatewaySelect = useCallback(
+    (item: { value: string }) => {
+      if (item.value === "skip") {
+        nextStep();
+        return;
+      }
+      setSelectedGateway(item.value as GatewayPlatform);
+      setGatewaySubStep("enter-token");
+      setGatewayBotToken("");
+      setGatewayError("");
+    },
+    [nextStep],
+  );
+
+  const handleGatewayBotTokenSubmit = useCallback(async () => {
+    if (!selectedGateway || !gatewayBotToken.trim()) {
+      setGatewayError("Bot token cannot be empty.");
+      return;
+    }
+    setGatewayLoading(true);
+    setGatewayError("");
+    try {
+      const res = await getGatewayLinkToken(selectedGateway, token, baseUrl);
+
+      writeCredentials({
+        [selectedGateway]: {
+          token: gatewayBotToken.trim(),
+        },
+      });
+
+      await enableGateway(selectedGateway, token, baseUrl);
+
+      setGatewayLinkToken(res.token);
+      setGatewaySubStep("show-link");
+    } catch (err: unknown) {
+      setGatewayError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGatewayLoading(false);
+    }
+  }, [selectedGateway, gatewayBotToken, token, baseUrl]);
+
+  const renderGateway = () => (
+    <Box flexDirection="column" gap={1}>
+      <Text color="white" bold>
+        Gateway Configuration
+      </Text>
+      <Text color="gray" dimColor>
+        Connect a messaging platform so your agent can receive messages.
+      </Text>
+
+      {gatewaySubStep === "pick" && (
+        <>
+          <Text color="gray" dimColor>
+            Select a gateway to configure:
+          </Text>
+          <SelectInput
+            items={GATEWAY_ITEMS}
+            onSelect={handleGatewaySelect}
+            indicatorComponent={({ isSelected }) => (
+              <Text color="cyan">{isSelected ? "▶ " : "  "}</Text>
+            )}
+            itemComponent={({ isSelected, label }) => (
+              <Text color={isSelected ? "cyan" : "white"} bold={isSelected}>
+                {label}
+              </Text>
+            )}
+          />
+          <Footer
+            hints={[
+              { key: "↑↓", label: "navigate" },
+              { key: "Enter", label: "select" },
+              { key: "Esc", label: "back" },
+            ]}
+          />
+        </>
+      )}
+
+      {gatewaySubStep === "enter-token" && selectedGateway && (
+        <>
+          <Box gap={2} alignItems="center">
+            <Text color="green" bold>
+              {selectedGateway === "telegram" ? "📨 Telegram" : "🎮 Discord"}
+            </Text>
+          </Box>
+
+          <Box flexDirection="column" gap={0}>
+            <Text color="gray" dimColor>
+              {selectedGateway === "telegram"
+                ? "Create a bot via @BotFather and paste the bot token below."
+                : "Create a Discord bot and paste the bot token below."}
+            </Text>
+            <Text color="cyan" dimColor>
+              📖 Docs: {GATEWAY_DOCS[selectedGateway]}
+            </Text>
+          </Box>
+
+          <Box flexDirection="column" gap={0}>
+            <Text color="cyan">Bot Token</Text>
+            <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+              <TextInput
+                value={gatewayBotToken}
+                onChange={setGatewayBotToken}
+                onSubmit={handleGatewayBotTokenSubmit}
+                placeholder={
+                  selectedGateway === "telegram"
+                    ? "1234567890:AAF..."
+                    : "MTY4..."
+                }
+              />
+            </Box>
+          </Box>
+
+          {gatewayLoading && (
+            <Box gap={1}>
+              <Text color="cyan">
+                <Spinner type="dots" />
+              </Text>
+              <Text color="cyan">Connecting to gateway…</Text>
+            </Box>
+          )}
+          {gatewayError && <Text color="red">✗ {gatewayError}</Text>}
+
+          <Footer
+            hints={[
+              { key: "Enter", label: "connect" },
+              { key: "Esc", label: "back" },
+            ]}
+          />
+        </>
+      )}
+
+      {gatewaySubStep === "show-link" && selectedGateway && (
+        <>
+          <Box gap={2} alignItems="center">
+            <Text color="green" bold>
+              ✓ Token generated!
+            </Text>
+          </Box>
+
+          <Text color="gray" dimColor>
+            Copy the link token below and send it to your bot:
+          </Text>
+
+          <Box flexDirection="column" gap={1} marginTop={1}>
+            <Text color="gray" dimColor>
+              Now open your{" "}
+              <Text color="white" bold>
+                {selectedGateway === "telegram" ? "Telegram" : "Discord"} bot
+              </Text>{" "}
+              and send this command:
+            </Text>
+            <Box borderStyle="round" borderColor="cyan" paddingX={2}>
+              <Text color="cyan" bold>
+                /link {gatewayLinkToken}
+              </Text>
+              <Text color="gray" dimColor>
+                CTRL + SHIFT + C to copy
+              </Text>
+            </Box>
+            <Text color="gray" dimColor>
+              The bot will confirm once linked successfully.
+            </Text>
+          </Box>
+
+          <Footer
+            hints={[
+              { key: "Enter", label: "continue" },
+              { key: "Esc", label: "back" },
+            ]}
+          />
+        </>
+      )}
+    </Box>
+  );
+
+  // -------------------------------------------------------------------------
   // Step: Done
   // -------------------------------------------------------------------------
 
@@ -752,6 +976,8 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   useInput((_, key) => {
     if (step === "welcome" && key.return) nextStep();
     if (step === "done" && key.return) handleDoneSubmit();
+    if (step === "gateway" && key.return && gatewaySubStep === "show-link")
+      nextStep();
   });
 
   const renderDone = () => (
@@ -808,6 +1034,7 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
     // connection: renderConnection,
     account: renderAccount,
     llm: renderLLM,
+    gateway: renderGateway,
     done: renderDone,
   };
 

@@ -24,8 +24,8 @@ export interface NexusCredentials {
   EMBEDDING_MODEL?: string;
   GOOGLE_API_KEY?: string;
 
-  TELEGRAM_TOKEN?: string;
-  DISCORD_TOKEN?: string;
+  telegram?: object;
+  discord?: object;
 }
 
 const CONFIG_DIR = path.join(os.homedir(), ".nexus");

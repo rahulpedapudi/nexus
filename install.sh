@@ -47,6 +47,14 @@ fi
 section "Configuring environment..."
 
 ENV_FILE="$NEXUS_HOME/.env"
+CREDENTIALS_FILE="$NEXUS_HOME/credentials.json"
+
+if [ ! -f "$CREDENTIALS_FILE" ]; then
+  info "Creating $CREDENTIALS_FILE..."
+  echo "{}" > "$CREDENTIALS_FILE"
+else
+  info "$CREDENTIALS_FILE already exists — skipping."
+fi
 
 if [ ! -f "$ENV_FILE" ]; then
   info "Generating secrets..."

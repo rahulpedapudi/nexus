@@ -49,7 +49,13 @@ async def enable_gateway(gateway: str):
 
         # update the credentials.json file to mark the gateway as enabled
         gateways = creds_store.get("ENABLED_GATEWAYS")
-        if gateway not in gateways:
+
+        # creating ENABLED_GATEWAYS key if it doesn't exist
+        if not gateways:
+            creds_store.set("ENABLED_GATEWAYS", [gateway])
+
+        # adding the gateway to the list if it's not already there
+        elif gateway not in gateways:
             gateways.append(gateway)
             creds_store.set("ENABLED_GATEWAYS", gateways)
 

@@ -109,6 +109,32 @@ export async function getMe(): Promise<UserResponse> {
   return request<UserResponse>("/auth/me");
 }
 
+export async function getGatewayLinkToken(
+  gateway: string,
+  authToken: string,
+  baseUrl?: string,
+): Promise<{ token: string }> {
+  return request<{ token: string }>(
+    `/auth/get-token?platform=${gateway}`,
+    { method: "POST" },
+    baseUrl,
+    authToken,
+  );
+}
+
+export async function enableGateway(
+  gateway: string,
+  authToken: string,
+  baseUrl?: string,
+): Promise<{ status: string }> {
+  return request<{ status: string }>(
+    `/settings/gateway/enable/${gateway}`,
+    { method: "POST" },
+    baseUrl,
+    authToken,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Keys (LLM provider API keys)
 // ---------------------------------------------------------------------------
