@@ -112,7 +112,7 @@ export NEXUS_HOME="$NEXUS_HOME"
 NEXUS_HOME="$NEXUS_HOME" docker compose \
   -f "$INSTALL_DIR/compose.yaml" \
   --env-file "$ENV_FILE" \
-  exec api alembic upgrade head
+  exec -T api alembic upgrade head
 
 # ── 7. wait for api ───────────────────────────────────────────
 info "Waiting for API to be ready..."
@@ -140,7 +140,7 @@ chmod +x "$INSTALL_DIR/tui/dist/index.js"
 sudo tee "$BIN_PATH" > /dev/null <<EOF
 #!/usr/bin/env bash
 NEXUS_API_URL=\${NEXUS_API_URL:-http://localhost:${API_PORT}}
-exec node "$INSTALL_DIR/tui/dist/index.js" "\$@"
+exec -T node "$INSTALL_DIR/tui/dist/index.js" "\$@"
 EOF
 sudo chmod +x "$BIN_PATH"
 
