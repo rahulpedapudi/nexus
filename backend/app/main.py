@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db.database import Base, engine
+from app.db.database import create_extensions
 from app.bot.gateway_manager import gateway_manager
 from app.core.credentials import creds_store
 from app.bot.telegram_handler import start_telegram, stop_telegram
@@ -24,6 +24,7 @@ setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    create_extensions()
 
     # registering the available gateways to the gateway manager
     gateway_manager.register(

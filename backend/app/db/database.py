@@ -10,7 +10,9 @@ load_dotenv()
 try:
     DATABASE_URL = os.getenv("DATABASE_URL")
 except Exception:
-    raise "NO Database URL in env file"
+    raise Exception("NO Database URL in env file")
+
+Base = declarative_base()
 
 engine = create_engine(
     DATABASE_URL,
@@ -30,11 +32,6 @@ def create_extensions():
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()
-
-
-create_extensions()
-
-Base = declarative_base()
 
 
 def get_db():
