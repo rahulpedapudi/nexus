@@ -6,59 +6,19 @@ import Spinner from "ink-spinner";
 
 import { StatusDot } from "../components/StatusDot.js";
 import { Footer } from "../components/Footer.js";
-import { readConfig } from "../config.js";
+import { readConfig, readCredentials, writeCredentials } from "../config.js";
 import type { Integration } from "../api/types.js";
+import { disableGateway } from "../api/client.js";
+import {
+  GatewayConfigurator,
+  type GatewayPlatform,
+} from "../components/GatewayConfigurator.js";
 
 // ---------------------------------------------------------------------------
 // Static integration catalogue
 // ---------------------------------------------------------------------------
 
 const INTEGRATION_CATALOGUE: Integration[] = [
-  {
-    name: "groq",
-    displayName: "Groq (LLM)",
-    connected: false,
-    fields: [
-      {
-        key: "api_key",
-        label: "Groq API Key",
-        placeholder: "gsk_…",
-        masked: true,
-      },
-    ],
-  },
-  {
-    name: "openrouter",
-    displayName: "OpenRouter (LLM)",
-    connected: false,
-    fields: [
-      {
-        key: "api_key",
-        label: "OpenRouter API Key",
-        placeholder: "sk-or-…",
-        masked: true,
-      },
-    ],
-  },
-  {
-    name: "google",
-    displayName: "Google Calendar",
-    connected: false,
-    fields: [
-      {
-        key: "client_id",
-        label: "OAuth Client ID",
-        placeholder: "*.apps.googleusercontent.com",
-        masked: false,
-      },
-      {
-        key: "client_secret",
-        label: "OAuth Client Secret",
-        placeholder: "••••••",
-        masked: true,
-      },
-    ],
-  },
   {
     name: "telegram",
     displayName: "Telegram Bot",
@@ -91,7 +51,7 @@ interface IntegrationsProps {
   onBack: () => void;
 }
 
-type SubScreen = "list" | "connect" | "disconnect";
+type SubScreen = "list" | "connect" | "disconnect" | "gateway" | "reconfigure";
 
 // ---------------------------------------------------------------------------
 
@@ -109,28 +69,36 @@ export function Integrations({ onBack }: IntegrationsProps) {
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
 
+  // Gateway configurator state
+  const [gatewayTarget, setGatewayTarget] = useState<GatewayPlatform | null>(
+    null,
+  );
+  const [authToken, setAuthToken] = useState("");
+  const [apiBaseUrl, setApiBaseUrl] = useState("http://localhost:8000");
+
   // Load connected status by checking /keys/list
   useEffect(() => {
     const loadStatuses = async () => {
       try {
         const cfg = readConfig();
-        const res = await fetch(
-          `${cfg.baseUrl ?? "http://localhost:8000"}/keys/list`,
-          {
-            headers: { Authorization: `Bearer ${cfg.token ?? ""}` },
-          },
-        );
-        if (res.ok) {
-          const keys: Array<{ provider: string }> = await res.json();
-          if (keys.length > 0)
-            setIntegrations((prev) =>
-              prev.map((intg) => {
-                const k = keys.find(
-                  (kk) => kk.provider.toLowerCase() === intg.name.toLowerCase(),
-                );
-                return k ? { ...intg, connected: true } : intg;
-              }),
-            );
+        setAuthToken(cfg.token ?? "");
+        setApiBaseUrl(cfg.baseUrl ?? "http://localhost:8000");
+
+        const creds = readCredentials();
+        const enabled_gateways = creds.ENABLED_GATEWAYS;
+
+        if (enabled_gateways && enabled_gateways.length > 0) {
+          setIntegrations((prev) =>
+            prev.map((intg) => {
+              if (enabled_gateways.includes(intg.name)) {
+                return {
+                  ...intg,
+                  connected: true,
+                };
+              }
+              return intg;
+            }),
+          );
         }
       } catch {
         // offline — show defaults
@@ -147,7 +115,13 @@ export function Integrations({ onBack }: IntegrationsProps) {
 
   useInput((input, key) => {
     if (key.escape || input === "q") {
-      if (subScreen !== "list") {
+      if (subScreen === "gateway" || subScreen === "reconfigure") {
+        // GatewayConfigurator handles its own Esc; this is the fallback
+        setSubScreen("list");
+        setGatewayTarget(null);
+        setSaveError("");
+        setSaveSuccess("");
+      } else if (subScreen !== "list") {
         setSubScreen("list");
         setSaveError("");
         setSaveSuccess("");
@@ -162,12 +136,25 @@ export function Integrations({ onBack }: IntegrationsProps) {
   // -------------------------------------------------------------------
 
   const openConnect = useCallback((intg: Integration) => {
+    // For telegram/discord, use the gateway configurator flow
+    if (intg.name === "telegram" || intg.name === "discord") {
+      setGatewayTarget(intg.name as GatewayPlatform);
+      setSubScreen("gateway");
+      return;
+    }
     setSelected(intg);
     setFieldValues(Object.fromEntries(intg.fields.map((f) => [f.key, ""])));
     setFocusedField(0);
     setSaveError("");
     setSaveSuccess("");
     setSubScreen("connect");
+  }, []);
+
+  const openReconfigure = useCallback((intg: Integration) => {
+    // Show confirmation before allowing reconfiguration of a connected gateway
+    setSelected(intg);
+    setSaveError("");
+    setSubScreen("reconfigure");
   }, []);
 
   const openDisconnect = useCallback((intg: Integration) => {
@@ -231,12 +218,23 @@ export function Integrations({ onBack }: IntegrationsProps) {
       }
       setSaving(true);
       try {
+        const cfg = readConfig();
+        await disableGateway(
+          selected.name,
+          cfg.token ?? apiBaseUrl,
+          cfg.baseUrl,
+        );
+
         setIntegrations((prev) =>
-          prev.map((i) =>
-            i.name === selected.name
-              ? { ...i, connected: false, connectedAt: undefined }
-              : i,
-          ),
+          prev.map((intg) => {
+            if (intg.name === selected.name) {
+              return {
+                ...intg,
+                connected: false,
+              };
+            }
+            return intg;
+          }),
         );
       } finally {
         setSaving(false);
@@ -273,7 +271,7 @@ export function Integrations({ onBack }: IntegrationsProps) {
           items={items}
           onSelect={(item) => {
             const intg = integrations.find((i) => i.name === item.value)!;
-            if (intg.connected) openDisconnect(intg);
+            if (intg.connected) openReconfigure(intg);
             else openConnect(intg);
           }}
           indicatorComponent={({ isSelected }) => (
@@ -293,7 +291,7 @@ export function Integrations({ onBack }: IntegrationsProps) {
                   {(intg?.connected ? "connected" : "not set up").padEnd(12)}
                 </Text>
                 <Text color="cyan" dimColor>
-                  {intg?.connected ? "[Disconnect]" : "[Connect]"}
+                  {intg?.connected ? "[Reconfigure]" : "[Connect]"}
                 </Text>
               </Box>
             );
@@ -401,16 +399,121 @@ export function Integrations({ onBack }: IntegrationsProps) {
     );
   };
 
+  // Reconfigure confirmation — shown when clicking a connected gateway
+  const renderReconfigure = () => {
+    if (!selected) return null;
+    const platformName = selected.name === "telegram" ? "Telegram" : "Discord";
+    const platformIcon = selected.name === "telegram" ? "📨" : "🎮";
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Text color="white" bold>
+          {platformIcon} Reconfigure {platformName}
+        </Text>
+        <Text color="gray" dimColor>
+          {platformName} is already connected.
+        </Text>
+        <Text color="yellow">⚠ Are you sure you want to reconfigure it?</Text>
+        <Text color="gray" dimColor>
+          You will need to re-link your bot with a new token.
+        </Text>
+        <SelectInput
+          items={[
+            { label: "Yes, reconfigure", value: "yes" },
+            { label: "Disconnect", value: "disconnect" },
+            { label: "Cancel", value: "no" },
+          ]}
+          onSelect={(item) => {
+            if (item.value === "yes" && selected) {
+              setGatewayTarget(selected.name as GatewayPlatform);
+              setSubScreen("gateway");
+            } else if (item.value === "disconnect" && selected) {
+              setSubScreen("disconnect");
+            } else {
+              setSubScreen("list");
+              setSelected(null);
+            }
+          }}
+          indicatorComponent={({ isSelected }) => (
+            <Text color={isSelected ? "yellow" : "gray"}>
+              {isSelected ? "▶ " : "  "}
+            </Text>
+          )}
+          itemComponent={({ isSelected, label }) => (
+            <Text
+              color={
+                isSelected
+                  ? label.startsWith("Yes")
+                    ? "yellow"
+                    : "cyan"
+                  : "white"
+              }>
+              {label}
+            </Text>
+          )}
+        />
+        <Footer
+          hints={[
+            { key: "↑↓", label: "navigate" },
+            { key: "Enter", label: "select" },
+            { key: "Esc", label: "cancel" },
+          ]}
+        />
+      </Box>
+    );
+  };
+
+  // Gateway configurator — reuses the shared GatewayConfigurator component
+  const renderGateway = () => {
+    if (!gatewayTarget) return null;
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Text color="white" bold>
+          Gateway Configuration
+        </Text>
+        <Text color="gray" dimColor>
+          Connect a messaging platform so your agent can receive messages.
+        </Text>
+        <GatewayConfigurator
+          gateway={gatewayTarget}
+          authToken={authToken}
+          baseUrl={apiBaseUrl}
+          onDone={() => {
+            // Mark the integration as connected
+            setIntegrations((prev) =>
+              prev.map((i) =>
+                i.name === gatewayTarget
+                  ? {
+                      ...i,
+                      connected: true,
+                      connectedAt: new Date().toISOString(),
+                    }
+                  : i,
+              ),
+            );
+            setGatewayTarget(null);
+            setSubScreen("list");
+          }}
+          onBack={() => {
+            setGatewayTarget(null);
+            setSubScreen("list");
+          }}
+        />
+      </Box>
+    );
+  };
+
   // -------------------------------------------------------------------
 
   const SUB_RENDERERS: Record<SubScreen, () => React.ReactNode> = {
     list: renderList,
     connect: renderConnect,
     disconnect: renderDisconnect,
+    reconfigure: renderReconfigure,
+    gateway: renderGateway,
   };
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1}>
+    <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
       <Text color="cyan" bold>
         🔗 Integrations
       </Text>
@@ -425,6 +528,8 @@ export function Integrations({ onBack }: IntegrationsProps) {
         {SUB_RENDERERS[subScreen]()}
       </Box>
 
+      <Box flexGrow={1} />
+
       <Footer
         hints={
           subScreen === "list"
@@ -433,13 +538,15 @@ export function Integrations({ onBack }: IntegrationsProps) {
                 { key: "Enter", label: "open" },
                 { key: "q / Esc", label: "back" },
               ]
-            : [
-                {
-                  key: "Enter",
-                  label: subScreen === "connect" ? "next / save" : "select",
-                },
-                { key: "Esc", label: "back to list" },
-              ]
+            : subScreen === "gateway"
+              ? [] // GatewayConfigurator renders its own footer
+              : [
+                  {
+                    key: "Enter",
+                    label: subScreen === "connect" ? "next / save" : "select",
+                  },
+                  { key: "Esc", label: "back to list" },
+                ]
         }
       />
     </Box>

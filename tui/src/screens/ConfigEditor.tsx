@@ -51,30 +51,30 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
             {
               key: "llm_provider",
               label: "LLM Provider",
-              value: cfg.LLM_PROVIDER ?? "—",
+              value: cfg.LLM_PROVIDER ?? "not set",
             },
             {
               key: "groq_api_key",
               label: "Groq API Key",
               masked: true,
-              value: cfg.GROQ_API_KEY ?? "—",
+              value: cfg.GROQ_API_KEY ?? "not set",
             },
             {
               key: "openrouter_api_key",
               label: "OpenRouter API Key",
               masked: true,
-              value: cfg.OPENROUTER_API_KEY ?? "—",
+              value: cfg.OPENROUTER_API_KEY ?? "not set",
             },
             {
               key: "embedding_model",
               label: "Embedding Model",
-              value: cfg.EMBEDDING_MODEL ?? "—",
+              value: cfg.EMBEDDING_MODEL ?? "not set",
             },
             {
               key: "google_api_key",
               label: "Google API Key",
               masked: true,
-              value: cfg.GOOGLE_API_KEY ?? "—",
+              value: cfg.GOOGLE_API_KEY ?? "not set",
             },
           ],
         },
@@ -231,7 +231,7 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
   }
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1}>
+    <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
       <Text color="cyan" bold>
         ⚙️ Config Editor
       </Text>
@@ -273,7 +273,7 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
                   {isEditing ? (
                     <Box gap={1}>
                       <TextInput
-                        value={editing.value}
+                        value={editing.value === "not set" ? "" : editing.value}
                         onChange={(val) =>
                           setEditing((prev) =>
                             prev ? { ...prev, value: val } : prev,
@@ -292,7 +292,7 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
                     <Text color={justSaved ? "green" : "white"}>
                       {justSaved
                         ? `✓ Saved`
-                        : entry.masked
+                        : entry.masked && entry.value != "not set"
                           ? "••••••••"
                           : entry.value}
                     </Text>
@@ -303,6 +303,8 @@ export function ConfigEditor({ onBack }: ConfigEditorProps) {
           </Box>
         ))}
       </Box>
+
+      <Box flexGrow={1} />
 
       <Footer
         hints={

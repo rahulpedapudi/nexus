@@ -8,7 +8,10 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { useStreamingChat, type StreamPhase } from "../../hooks/useStreamingChat";
+import {
+  useStreamingChat,
+  type StreamPhase,
+} from "../../hooks/useStreamingChat";
 import { useQueryClient } from "@tanstack/react-query";
 import { CONVERSATIONS_KEY } from "../../hooks/useConversations";
 import { conversationApi } from "../../api/chat";
@@ -34,8 +37,7 @@ function StatusPill({ phase }: { phase: StreamPhase }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 6 }}
           transition={{ duration: 0.2 }}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium w-fit"
-        >
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium w-fit">
           <Loader2 className="w-3 h-3 animate-spin" />
           {PHASE_LABEL[phase]}
         </motion.div>
@@ -50,7 +52,7 @@ function TypingCursor() {
   return (
     <motion.span
       animate={{ opacity: [1, 0] }}
-      transition={{ repeat: Infinity, duration: 0.6, ease: "steps(1)" }}
+      transition={{ repeat: Infinity, duration: 0.6, ease: "easeInOut" }}
       className="inline-block w-[2px] h-[1em] bg-foreground align-text-bottom ml-0.5"
     />
   );
@@ -71,8 +73,7 @@ function MessageContent({ text }: { text: string }) {
           return (
             <pre
               key={i}
-              className="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto my-2 whitespace-pre"
-            >
+              className="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto my-2 whitespace-pre">
               {lang && (
                 <span className="text-muted-foreground block mb-1">{lang}</span>
               )}
@@ -87,7 +88,9 @@ function MessageContent({ text }: { text: string }) {
                 return <strong key={j}>{seg.slice(2, -2)}</strong>;
               if (seg.startsWith("`") && seg.endsWith("`"))
                 return (
-                  <code key={j} className="bg-muted px-1 py-0.5 rounded text-xs font-mono">
+                  <code
+                    key={j}
+                    className="bg-muted px-1 py-0.5 rounded text-xs font-mono">
                     {seg.slice(1, -1)}
                   </code>
                 );
@@ -118,8 +121,7 @@ function MessageBubble({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}
-    >
+      className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
       {!isUser && (
         <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mr-3 mt-1 shrink-0">
           <BrainCircuit className="w-3.5 h-3.5 text-primary" />
@@ -130,8 +132,7 @@ function MessageBubble({
           isUser
             ? "bg-primary text-primary-foreground rounded-tr-sm"
             : "bg-card border border-border text-foreground rounded-tl-sm"
-        }`}
-      >
+        }`}>
         {content ? (
           <>
             <MessageContent text={content} />
@@ -144,7 +145,12 @@ function MessageBubble({
                 key={i}
                 className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60"
                 animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2, ease: "easeInOut" }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.2,
+                  delay: i * 0.2,
+                  ease: "easeInOut",
+                }}
               />
             ))}
           </div>
@@ -158,15 +164,45 @@ function MessageBubble({
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center gap-4 pb-16 select-none">
-      <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-        <BrainCircuit className="w-8 h-8 text-primary" />
+    <div className="flex flex-col items-center justify-center h-full text-left gap-8 pb-16 select-none font-mono">
+      <div className="flex flex-col items-center gap-2 text-center mt-10">
+        <h1 className="text-5xl font-bold tracking-[0.15em] text-muted-foreground uppercase opacity-80">
+          Nexus
+        </h1>
+        <span className="text-muted-foreground/60 text-xs">v1.0.0</span>
       </div>
-      <div>
-        <h2 className="text-xl font-light tracking-wide">Nexus is ready</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Ask me anything — I'll help you think it through.
-        </p>
+
+      <div className="flex flex-col gap-2 text-xs text-muted-foreground mt-4">
+        <div className="flex items-center gap-8">
+          <span className="text-primary min-w-[80px]">/help</span>
+          <span>show help</span>
+          <span className="ml-auto opacity-50">ctrl+h</span>
+        </div>
+        <div className="flex items-center gap-8">
+          <span className="text-primary min-w-[80px]">/editor</span>
+          <span>open editor</span>
+          <span className="ml-auto opacity-50">ctrl+e</span>
+        </div>
+        <div className="flex items-center gap-8">
+          <span className="text-primary min-w-[80px]">/models</span>
+          <span>list models</span>
+          <span className="ml-auto opacity-50">ctrl+m</span>
+        </div>
+        <div className="flex items-center gap-8">
+          <span className="text-primary min-w-[80px]">/init</span>
+          <span>create/update AGENTS.md</span>
+          <span className="ml-auto opacity-50">ctrl+i</span>
+        </div>
+        <div className="flex items-center gap-8">
+          <span className="text-primary min-w-[80px]">/compact</span>
+          <span>compact the session</span>
+          <span className="ml-auto opacity-50">ctrl+c</span>
+        </div>
+        <div className="flex items-center gap-8">
+          <span className="text-primary min-w-[80px]">/sessions</span>
+          <span>list sessions</span>
+          <span className="ml-auto opacity-50">ctrl+l</span>
+        </div>
       </div>
     </div>
   );
@@ -182,12 +218,20 @@ export const ChatThread = () => {
   const [input, setInput] = useState("");
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const { messages, streamState, convId: hookConvId, sendMessage, abort, loadMessages, resetMessages } =
-    useStreamingChat(null);
+  const {
+    messages,
+    streamState,
+    convId: hookConvId,
+    sendMessage,
+    abort,
+    loadMessages,
+    resetMessages,
+  } = useStreamingChat(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const isActive = streamState.phase === "thinking" || streamState.phase === "streaming";
+  const isActive =
+    streamState.phase === "thinking" || streamState.phase === "streaming";
 
   // ── Load history when URL param changes ──────────────────────────────────
   useEffect(() => {
@@ -259,10 +303,12 @@ export const ChatThread = () => {
           <EmptyState />
         ) : (
           messages.map((msg, idx) => {
-            const isLastAssistant = msg.role === "assistant" && idx === messages.length - 1;
+            const isLastAssistant =
+              msg.role === "assistant" && idx === messages.length - 1;
             const isDraftStreaming =
               isLastAssistant &&
-              (streamState.phase === "streaming" || streamState.phase === "thinking");
+              (streamState.phase === "streaming" ||
+                streamState.phase === "thinking");
             return (
               <MessageBubble
                 key={msg.id}
@@ -281,8 +327,7 @@ export const ChatThread = () => {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-2 text-sm text-destructive px-4 py-2 bg-destructive/10 rounded-lg border border-destructive/20 mx-auto w-fit mb-4"
-            >
+              className="flex items-center gap-2 text-sm text-destructive px-4 py-2 bg-destructive/10 rounded-lg border border-destructive/20 mx-auto w-fit mb-4">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {streamState.errorDetail ?? "An error occurred"}
             </motion.div>
@@ -299,43 +344,37 @@ export const ChatThread = () => {
 
       {/* Input bar */}
       <div className="px-4 pb-6">
-        <div className="flex items-end gap-3 bg-card border border-border rounded-2xl px-4 py-3 shadow-sm focus-within:border-primary/50 transition-colors">
-          <textarea
-            ref={textareaRef}
-            id="chat-input"
-            rows={1}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              autoResize();
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask Nexus anything…"
-            disabled={isActive || loadingHistory}
-            className="flex-1 bg-transparent resize-none outline-none text-sm placeholder:text-muted-foreground leading-relaxed max-h-40 disabled:opacity-50 py-0.5"
-          />
-          {isActive ? (
-            <button
-              onClick={abort}
-              className="p-1.5 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors shrink-0"
-              aria-label="Stop generation"
-            >
-              <StopCircle className="w-5 h-5" />
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || loadingHistory}
-              className="p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Send message"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          )}
+        <div className="flex flex-col font-mono w-full max-w-3xl mx-auto">
+          <div className="flex items-start gap-3 bg-muted/30 focus-within:bg-muted/50 transition-colors border-l-[3px] border-transparent focus-within:border-primary px-4 py-3">
+            <span className="text-primary font-bold mt-[2px]">{">"}</span>
+            <textarea
+              ref={textareaRef}
+              id="chat-input"
+              rows={1}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autoResize();
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder=""
+              disabled={isActive || loadingHistory}
+              className="flex-1 bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground leading-relaxed max-h-40 disabled:opacity-50 py-0.5"
+            />
+            {isActive && (
+              <button
+                onClick={abort}
+                className="text-destructive hover:text-destructive/80 transition-colors shrink-0 px-2 mt-[2px]"
+                aria-label="Stop generation">
+                <StopCircle className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex justify-between items-center text-xs text-muted-foreground/60 mt-2 px-1">
+            <span>enter send</span>
+            <span>Nexus Assistant</span>
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Enter to send · Shift+Enter for new line
-        </p>
       </div>
     </div>
   );

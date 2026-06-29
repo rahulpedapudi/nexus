@@ -1,4 +1,4 @@
-import { readConfig } from "../config";
+import { readConfig } from "../config.js";
 import type {
   HealthResponse,
   TokenResponse,
@@ -133,6 +133,23 @@ export async function enableGateway(
     baseUrl,
     authToken,
   );
+}
+
+export async function disableGateway(
+  gateway: string,
+  authToken: string,
+  baseUrl?: string,
+): Promise<void> {
+  return request<void>(`/settings/gateway/disable/${gateway}`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function getLLM() {
+  return request<{ llm: string; model: string }>("/settings/llm", {
+    method: "GET",
+  });
 }
 
 // ---------------------------------------------------------------------------

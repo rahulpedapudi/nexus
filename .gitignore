@@ -23,7 +23,7 @@ go.work.sum
 
 # Developer dependency caching (if using vendor)
 # vendor/
-
+nexus-desktop/
 
 # ==========================================
 # Python Artifacts

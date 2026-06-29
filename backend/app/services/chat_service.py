@@ -90,7 +90,7 @@ def _build_context(conversation: Conversation, db: Session, user: User) -> list[
         db.query(Message)
         .filter(Message.conv_id == conversation.id, Message.user_id == user.id)
         .order_by(Message.created_at.desc())
-        .limit(3)
+        .limit(10)
         .all()
     )
     return [{"role": m.role, "content": m.content} for m in reversed(recent)]
@@ -191,10 +191,10 @@ async def chat(data: MessageCreate, db: Session, current_user: User) -> Message:
     logger.info("chat | done | user=%s | total=%.3fs",
                 current_user.id, time.perf_counter() - total_t0)
 
-    asyncio.create_task(
-        _extract_and_store(user=current_user, user_msg=data.content,
-                           assistant_msg=llm_text, api_key=api_key, db=db)
-    )
+    # asyncio.create_task(
+    #     _extract_and_store(user=current_user, user_msg=data.content,
+    #                        assistant_msg=llm_text, api_key=api_key, db=db)
+    # )
 
     return llm_text
 
@@ -284,10 +284,10 @@ async def stream_events(
         }
 
         # Fire memory extraction as a background task — doesn't block the done event
-        asyncio.create_task(
-            _extract_and_store(current_user, data.content,
-                               full_response, api_key, db)
-        )
+        # asyncio.create_task(
+        #     _extract_and_store(current_user, data.content,
+        #                        full_response, api_key, db)
+        # )
 
     except Exception as exc:
         yield {"type": "error", "detail": "Failed to persist message: " + str(exc)}

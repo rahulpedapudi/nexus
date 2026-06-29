@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-
+from app.core.config import settings
 from app.core.credentials import creds_store
 from app.bot.gateway_manager import gateway_manager
 
@@ -95,4 +95,5 @@ def set_llm(provider: str):
 
 
 def get_llm():
-    return {"llm": creds_store.get("LLM_PROVIDER")}
+    llm_provider = creds_store.get("LLM_PROVIDER")
+    return {"llm": llm_provider, "model": settings.GROQ_DEFAULT_MODEL if llm_provider == "groq" else settings.OPENROUTER_DEFAULT_MODEL}

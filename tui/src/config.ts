@@ -23,6 +23,7 @@ export interface NexusCredentials {
   OPENROUTER_API_KEY?: string;
   EMBEDDING_MODEL?: string;
   GOOGLE_API_KEY?: string;
+  ENABLED_GATEWAYS?: string[];
 
   telegram?: object;
   discord?: object;

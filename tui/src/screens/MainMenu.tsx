@@ -13,11 +13,10 @@ const NEXUS_LOGO = `
 ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝`.trim();
 
 const MENU_ITEMS = [
-  { label: "💬  Chat", value: "chat" as Screen },
-  { label: "⚡  Setup Wizard", value: "setup-wizard" as Screen },
-  { label: "📊  Dashboard", value: "dashboard" as Screen },
-  { label: "🔗  Integrations", value: "integrations" as Screen },
-  { label: "⚙️   Config Editor", value: "config-editor" as Screen },
+  // { label: "Chat", value: "chat" as Screen },
+  { label: "Config Editor", value: "config-editor" as Screen },
+  { label: "Integrations", value: "integrations" as Screen },
+  // { label: "⚡  Setup Wizard", value: "setup-wizard" as Screen },
 ];
 
 interface MainMenuProps {
@@ -26,7 +25,11 @@ interface MainMenuProps {
   hasConfig: boolean;
 }
 
-export function MainMenu({ onNavigate, onBackToChat, hasConfig }: MainMenuProps) {
+export function MainMenu({
+  onNavigate,
+  onBackToChat,
+  hasConfig,
+}: MainMenuProps) {
   useInput((input, key) => {
     if (key.escape || input === "q") {
       if (hasConfig) onBackToChat();
@@ -39,7 +42,7 @@ export function MainMenu({ onNavigate, onBackToChat, hasConfig }: MainMenuProps)
   };
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1}>
+    <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
       {/* Logo */}
       <Box flexDirection="column" marginBottom={2} alignItems="center">
         {NEXUS_LOGO.split("\n").map((line, i) => (
@@ -53,16 +56,15 @@ export function MainMenu({ onNavigate, onBackToChat, hasConfig }: MainMenuProps)
       </Box>
 
       {/* Status badge */}
-      {!hasConfig && (
+      {/* {!hasConfig && (
         <Box
           borderStyle="round"
           borderColor="yellow"
           paddingX={2}
           paddingY={0}
           marginBottom={1}
-          alignSelf="flex-start"
-        >
-          <Text color="yellow">⚠  Not configured — run Setup Wizard first</Text>
+          alignSelf="flex-start">
+          <Text color="yellow">⚠ Not configured — run Setup Wizard first</Text>
         </Box>
       )}
       {hasConfig && (
@@ -72,11 +74,10 @@ export function MainMenu({ onNavigate, onBackToChat, hasConfig }: MainMenuProps)
           paddingX={2}
           paddingY={0}
           marginBottom={1}
-          alignSelf="flex-start"
-        >
-          <Text color="green">✓  Configured and ready</Text>
+          alignSelf="flex-start">
+          <Text color="green">✓ Configured and ready</Text>
         </Box>
-      )}
+      )} */}
 
       {/* Menu */}
       <Box flexDirection="column" marginBottom={1}>
@@ -100,11 +101,13 @@ export function MainMenu({ onNavigate, onBackToChat, hasConfig }: MainMenuProps)
         </Text>
       </Box>
 
+      <Box flexGrow={1} />
+
       <Footer
         hints={[
           { key: "↑↓", label: "navigate" },
           { key: "Enter", label: "select" },
-          { key: "Esc / q", label: hasConfig ? "back to chat" : "quit" },
+          { key: "Esc / q", label: "back to chat" },
         ]}
       />
     </Box>

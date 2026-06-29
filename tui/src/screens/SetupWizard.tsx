@@ -11,10 +11,12 @@ import {
   setupUser,
   login,
   createKey,
-  getGatewayLinkToken,
-  enableGateway,
 } from "../api/client.js";
 import { writeConfig, writeCredentials } from "../config.js";
+import {
+  GatewayConfigurator,
+  type GatewayPlatform,
+} from "../components/GatewayConfigurator.js";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -109,25 +111,17 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   const [llmError, setLlmError] = useState("");
 
   // --- Gateway step ---
-  type GatewayPlatform = "telegram" | "discord";
   const GATEWAY_ITEMS = [
     { label: "📨  Telegram", value: "telegram" },
     { label: "🎮  Discord", value: "discord" },
     { label: "⏭  Skip for now", value: "skip" },
   ];
-  const GATEWAY_DOCS: Record<GatewayPlatform, string> = {
-    telegram: "https://docs.nexus.example/gateways/telegram",
-    discord: "https://docs.nexus.example/gateways/discord",
-  };
 
-  type GatewaySubStep = "pick" | "enter-token" | "show-link";
+  // "pick" → user selects a platform; "configure" → GatewayConfigurator is active
+  type GatewaySubStep = "pick" | "configure";
   const [gatewaySubStep, setGatewaySubStep] = useState<GatewaySubStep>("pick");
   const [selectedGateway, setSelectedGateway] =
     useState<GatewayPlatform | null>(null);
-  const [gatewayBotToken, setGatewayBotToken] = useState("");
-  const [gatewayLinkToken, setGatewayLinkToken] = useState("");
-  const [gatewayLoading, setGatewayLoading] = useState(false);
-  const [gatewayError, setGatewayError] = useState("");
 
   const step = STEPS[stepIdx]!;
 
@@ -163,17 +157,11 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
       }
       // Inside gateway step: go back through sub-steps
       if (step === "gateway") {
-        if (gatewaySubStep === "show-link") {
-          setGatewaySubStep("enter-token");
-          setGatewayLinkToken("");
-          setGatewayError("");
-          return;
-        }
-        if (gatewaySubStep === "enter-token") {
+        if (gatewaySubStep === "configure") {
+          // GatewayConfigurator handles its own Esc internally;
+          // if it bubbles up here, go back to the pick screen.
           setGatewaySubStep("pick");
           setSelectedGateway(null);
-          setGatewayBotToken("");
-          setGatewayError("");
           return;
         }
       }
@@ -791,39 +779,10 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
         return;
       }
       setSelectedGateway(item.value as GatewayPlatform);
-      setGatewaySubStep("enter-token");
-      setGatewayBotToken("");
-      setGatewayError("");
+      setGatewaySubStep("configure");
     },
     [nextStep],
   );
-
-  const handleGatewayBotTokenSubmit = useCallback(async () => {
-    if (!selectedGateway || !gatewayBotToken.trim()) {
-      setGatewayError("Bot token cannot be empty.");
-      return;
-    }
-    setGatewayLoading(true);
-    setGatewayError("");
-    try {
-      const res = await getGatewayLinkToken(selectedGateway, token, baseUrl);
-
-      writeCredentials({
-        [selectedGateway]: {
-          token: gatewayBotToken.trim(),
-        },
-      });
-
-      await enableGateway(selectedGateway, token, baseUrl);
-
-      setGatewayLinkToken(res.token);
-      setGatewaySubStep("show-link");
-    } catch (err: unknown) {
-      setGatewayError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setGatewayLoading(false);
-    }
-  }, [selectedGateway, gatewayBotToken, token, baseUrl]);
 
   const renderGateway = () => (
     <Box flexDirection="column" gap={1}>
@@ -861,100 +820,17 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
         </>
       )}
 
-      {gatewaySubStep === "enter-token" && selectedGateway && (
-        <>
-          <Box gap={2} alignItems="center">
-            <Text color="green" bold>
-              {selectedGateway === "telegram" ? "📨 Telegram" : "🎮 Discord"}
-            </Text>
-          </Box>
-
-          <Box flexDirection="column" gap={0}>
-            <Text color="gray" dimColor>
-              {selectedGateway === "telegram"
-                ? "Create a bot via @BotFather and paste the bot token below."
-                : "Create a Discord bot and paste the bot token below."}
-            </Text>
-            <Text color="cyan" dimColor>
-              📖 Docs: {GATEWAY_DOCS[selectedGateway]}
-            </Text>
-          </Box>
-
-          <Box flexDirection="column" gap={0}>
-            <Text color="cyan">Bot Token</Text>
-            <Box borderStyle="round" borderColor="cyan" paddingX={1}>
-              <TextInput
-                value={gatewayBotToken}
-                onChange={setGatewayBotToken}
-                onSubmit={handleGatewayBotTokenSubmit}
-                placeholder={
-                  selectedGateway === "telegram"
-                    ? "1234567890:AAF..."
-                    : "MTY4..."
-                }
-              />
-            </Box>
-          </Box>
-
-          {gatewayLoading && (
-            <Box gap={1}>
-              <Text color="cyan">
-                <Spinner type="dots" />
-              </Text>
-              <Text color="cyan">Connecting to gateway…</Text>
-            </Box>
-          )}
-          {gatewayError && <Text color="red">✗ {gatewayError}</Text>}
-
-          <Footer
-            hints={[
-              { key: "Enter", label: "connect" },
-              { key: "Esc", label: "back" },
-            ]}
-          />
-        </>
-      )}
-
-      {gatewaySubStep === "show-link" && selectedGateway && (
-        <>
-          <Box gap={2} alignItems="center">
-            <Text color="green" bold>
-              ✓ Token generated!
-            </Text>
-          </Box>
-
-          <Text color="gray" dimColor>
-            Copy the link token below and send it to your bot:
-          </Text>
-
-          <Box flexDirection="column" gap={1} marginTop={1}>
-            <Text color="gray" dimColor>
-              Now open your{" "}
-              <Text color="white" bold>
-                {selectedGateway === "telegram" ? "Telegram" : "Discord"} bot
-              </Text>{" "}
-              and send this command:
-            </Text>
-            <Box borderStyle="round" borderColor="cyan" paddingX={2}>
-              <Text color="cyan" bold>
-                /link {gatewayLinkToken}
-              </Text>
-              <Text color="gray" dimColor>
-                CTRL + SHIFT + C to copy
-              </Text>
-            </Box>
-            <Text color="gray" dimColor>
-              The bot will confirm once linked successfully.
-            </Text>
-          </Box>
-
-          <Footer
-            hints={[
-              { key: "Enter", label: "continue" },
-              { key: "Esc", label: "back" },
-            ]}
-          />
-        </>
+      {gatewaySubStep === "configure" && selectedGateway && (
+        <GatewayConfigurator
+          gateway={selectedGateway}
+          authToken={token}
+          baseUrl={baseUrl}
+          onDone={nextStep}
+          onBack={() => {
+            setGatewaySubStep("pick");
+            setSelectedGateway(null);
+          }}
+        />
       )}
     </Box>
   );
@@ -976,8 +852,7 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   useInput((_, key) => {
     if (step === "welcome" && key.return) nextStep();
     if (step === "done" && key.return) handleDoneSubmit();
-    if (step === "gateway" && key.return && gatewaySubStep === "show-link")
-      nextStep();
+    // Gateway "Enter to continue" is now handled inside GatewayConfigurator
   });
 
   const renderDone = () => (
@@ -1039,7 +914,7 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   };
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1}>
+    <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
       <StepIndicator
         current={stepIdx}
         total={STEPS.length}
@@ -1051,6 +926,7 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
         paddingX={2}
         paddingY={1}
         flexDirection="column"
+        flexGrow={1}
         gap={1}>
         {STEP_RENDERERS[step]()}
       </Box>

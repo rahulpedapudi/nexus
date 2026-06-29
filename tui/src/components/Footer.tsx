@@ -8,8 +8,6 @@ interface FooterProps {
 export function Footer({ hints }: FooterProps) {
   return (
     <Box
-      borderStyle="single"
-      borderColor="gray"
       paddingX={1}
       flexDirection="row"
       flexWrap="wrap"

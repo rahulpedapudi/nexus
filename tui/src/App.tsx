@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useInput } from "ink";
+import { useInput, Box, useStdout } from "ink";
 
 import { Chat } from "./screens/Chat.js";
 import { MainMenu } from "./screens/MainMenu.js";
@@ -17,6 +17,10 @@ interface AppProps {
 export function App({ initialScreen, hasConfig }: AppProps) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [configReady, setConfigReady] = useState(hasConfig);
+  
+  const { stdout } = useStdout();
+  const cols = stdout?.columns ?? 100;
+  const rows = stdout?.rows ?? 30;
 
   const navigateTo = (next: Screen) => setScreen(next);
   const backToChat = () => setScreen("chat");
@@ -32,40 +36,46 @@ export function App({ initialScreen, hasConfig }: AppProps) {
     }
   });
 
-  switch (screen) {
-    case "chat":
-      return <Chat onNavigate={navigateTo} />;
-
-    case "main-menu":
-      return (
-        <MainMenu
-          onNavigate={navigateTo}
-          hasConfig={configReady}
-          onBackToChat={backToChat}
-        />
-      );
-
-    case "setup-wizard":
-      return (
-        <SetupWizard
-          onComplete={() => {
-            setConfigReady(true);
-            setScreen("chat");
-          }}
-          onBack={() => setScreen(configReady ? "chat" : "main-menu")}
-        />
-      );
-
-    // case "dashboard":
-    // return <Dashboard onBack={backToChat} />;
-
-    case "integrations":
-      return <Integrations onBack={backToChat} />;
-
-    case "config-editor":
-      return <ConfigEditor onBack={backToChat} />;
-
-    default:
-      return <Chat onNavigate={navigateTo} />;
+  if (screen === "chat") {
+    return <Chat onNavigate={navigateTo} />;
   }
+
+  const renderScreen = () => {
+    switch (screen) {
+      case "main-menu":
+        return (
+          <MainMenu
+            onNavigate={navigateTo}
+            hasConfig={configReady}
+            onBackToChat={backToChat}
+          />
+        );
+
+      case "setup-wizard":
+        return (
+          <SetupWizard
+            onComplete={() => {
+              setConfigReady(true);
+              setScreen("chat");
+            }}
+            onBack={() => setScreen(configReady ? "chat" : "main-menu")}
+          />
+        );
+
+      case "integrations":
+        return <Integrations onBack={backToChat} />;
+
+      case "config-editor":
+        return <ConfigEditor onBack={backToChat} />;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Box height={rows} width={cols} flexDirection="column">
+      {renderScreen()}
+    </Box>
+  );
 }

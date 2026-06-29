@@ -60,6 +60,9 @@ async def get_llm_response(
 
     _provider = get_provider()
 
+    if _provider is None:
+        return "LLM provider is not configured"
+
     try:
         while True:
             loop_count += 1
@@ -147,6 +150,10 @@ async def stream_response(
     loop_count = 0
 
     _provider = get_provider()
+
+    if _provider is None:
+        yield {"type": "error", "code": "llm.not_configured", "detail": "LLM is not configured. Please type /config to configure it."}
+        return
 
     yield {"type": "status", "phase": "thinking"}
 

@@ -112,7 +112,8 @@ export NEXUS_HOME="$NEXUS_HOME"
 NEXUS_HOME="$NEXUS_HOME" docker compose \
   -f "$INSTALL_DIR/compose.yaml" \
   --env-file "$ENV_FILE" \
-  exec -T api timeout 60 alembic upgrade head
+  exec -T api alembic upgrade head < /dev/null
+
 
 # ── 7. wait for api ───────────────────────────────────────────
 info "Waiting for API to be ready..."
