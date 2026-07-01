@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+from pathlib import Path
 import time
 from typing import AsyncGenerator
 from datetime import datetime
@@ -8,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 
-from app.agent.prompts import SYSTEM_PROMPT, DISCORD_FORMAT_ADDENDUM, TELEGRAM_ADDENDUM
+from app.agent.prompts import SYSTEM_PROMPT, DISCORD_FORMAT_ADDENDUM, TELEGRAM_ADDENDUM, TUI_ADDENDUM
 
 from app.agent.llms import build_llm_provider, LLMError
 
@@ -25,15 +27,43 @@ def get_provider():
     return _provider
 
 
+def build_system_prompt():
+    try:
+        context_dir = Path.home() / ".nexus" / "context"
+
+        files = ["SOUL.md", "DIRECTIVES.md"]
+
+        context_blocks = []
+
+        for f in files:
+            file_path = context_dir / f
+            if file_path.exists():
+                context_blocks.append(file_path.read_text())
+
+        # logger.info("\nbuild_system_prompt\n%s\n", context_blocks)
+
+        return (context_blocks)
+
+    except Exception as e:
+        logger.error("Failed to build system prompt: %s", e)
+        return None
+
+
 def _build_system_messages(user: User, source: str = "web") -> list[dict]:
+    context = build_system_prompt()
+
     content = SYSTEM_PROMPT.format(
         current_datetime=datetime.now().astimezone().strftime("%A, %d %B %Y %I:%M %p %z"),
         user_name=user.username,
+        context=context,
     )
+
     if source == "discord":
         content += DISCORD_FORMAT_ADDENDUM
     elif source == "telegram":
         content += TELEGRAM_ADDENDUM
+    elif source == "tui":
+        content += f"#ALWAYS FOLLOW THIS AS A STRICT FORMATTING INSTRUCTION\n{TUI_ADDENDUM}"
     return [
         {
             "role": "system",
@@ -158,12 +188,15 @@ async def stream_response(
     yield {"type": "status", "phase": "thinking"}
 
     try:
-        # ── Tool-use pass (non-streaming, only if tools are called) ──────────
+
         while True:
-            # First, do a non-streaming probe to detect tool calls
+
             loop_count += 1
             t0 = time.perf_counter()
 
+            # Probe with a non-streaming call to detect tool calls.
+            # If no tools are needed, we reuse the probe's content directly
+            # avoids a redundant second API call on every no-tool response.
             probe = await _provider.complete(messages=messages, tools=registry.schemas)
 
             logger.info("stream_response | probe #%d | user=%s | took=%.3fs",
@@ -176,8 +209,21 @@ async def stream_response(
             logger.info("tool_calls | %s", tool_calls)
 
             if not tool_calls:
-                # No tools needed — break and stream a fresh final response
-                break
+                # No tools needed — fake-stream the probe content word-by-word
+                content = assistant_message.content or ""
+                yield {"type": "status", "phase": "streaming"}
+                words = content.split(" ")
+                for i, word in enumerate(words):
+                    token = word if i == len(words) - 1 else word + " "
+                    yield {"type": "delta", "text": token}
+                    # token_count += 1
+                    await asyncio.sleep(0.012)  # ~83 words/sec
+                logger.info(
+                    "stream_response | done (no-tool fast path) | user=%s | probes=%d | total=%.3fs",
+                    user.id, loop_count, time.perf_counter() - total_t0,
+                )
+                yield {"type": "status", "phase": "done"}
+                return
 
             # Execute tool calls, append results, and loop back
             messages.append(assistant_message.to_dict())
@@ -207,19 +253,12 @@ async def stream_response(
                     "content": json.dumps(tool_result),
                 })
 
-        # ── Final streaming response ──────────────────────────────────────────
-        # At this point messages contains all tool results (if any).
+        # ── Final streaming response (tool path only) ────────────────────────
+        # Only reached when at least one tool was called.
+        # At this point messages contains all tool results.
         # Stream the final answer in one shot.
         stream_t0 = time.perf_counter()
-
-        # stream = await client.chat.completions.create(
-        #     model=settings.MODEL,
-        #     messages=messages,
-        #     stream=True,
-        # )
-
         first_token = True
-        token_count = 0
 
         async for token in _provider.stream(messages=messages):
             token_count += 1
@@ -229,7 +268,6 @@ async def stream_response(
                     "stream_response | first token | user=%s | time_to_first=%.3fs",
                     user.id, time.perf_counter() - stream_t0,
                 )
-
                 yield {"type": "status", "phase": "streaming"}
                 first_token = False
 

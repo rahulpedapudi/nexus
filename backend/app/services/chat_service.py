@@ -85,6 +85,8 @@ def _retrieve_relevant_memories(db, user, query) -> str:
 
 def _build_context(conversation: Conversation, db: Session, user: User) -> list[dict]:
     """Return the last 3 messages as a list of {role, content} dicts."""
+    # 1. retrieve soul.md, persona.md;
+
     # TODO: implement context summarisation when messages > 10
     recent = (
         db.query(Message)
