@@ -1,7 +1,6 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Any
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
 
 
 @dataclass
@@ -16,6 +15,10 @@ class LLMMessage:
     role: str
     content: str | None
     tool_calls: list[ToolCall] = field(default_factory=list)
+    # Provider-specific opaque data that must survive round-trips.
+    # GeminiProvider stores the raw Part list here so that thought blocks
+    # (including thought_signature) can be replayed verbatim on the next turn.
+    _gemini_parts: list | None = field(default=None, repr=False)
 
     def to_dict(self) -> dict:
         msg: dict[str, Any] = {"role": self.role, "content": self.content}
@@ -29,6 +32,8 @@ class LLMMessage:
                 }
                 for tc in self.tool_calls
             ]
+        if self._gemini_parts is not None:
+            msg["_gemini_parts"] = self._gemini_parts
         return msg
 
 

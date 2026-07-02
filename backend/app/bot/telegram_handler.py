@@ -79,6 +79,30 @@ def tokens_to_mdv2(tokens: list[Token]) -> str:
         elif tok.type == 'hr':
             result.append(escape_v2('---') + '\n')
 
+        # ── Tables ────────────────────────────────────────────────────────────
+        # Telegram doesn't render Markdown tables, so we convert them to plain
+        # pipe-separated rows.  Each row ends with \n; a blank line is added
+        # after the header section so the body rows read more clearly.
+        elif tok.type == 'table_open':
+            result.append('\n')
+        elif tok.type == 'table_close':
+            result.append('\n')
+        elif tok.type in ('thead_open', 'tbody_open'):
+            pass
+        elif tok.type == 'thead_close':
+            # Blank line between header and body rows
+            result.append('\n')
+        elif tok.type == 'tbody_close':
+            pass
+        elif tok.type == 'tr_open':
+            result.append('\| ')
+        elif tok.type == 'tr_close':
+            result.append('\n')
+        elif tok.type in ('th_open', 'td_open'):
+            pass
+        elif tok.type in ('th_close', 'td_close'):
+            result.append(' \|')
+
         i += 1
 
     return ''.join(result)

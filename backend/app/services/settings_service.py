@@ -96,4 +96,7 @@ def set_llm(provider: str):
 
 def get_llm():
     llm_provider = creds_store.get("LLM_PROVIDER")
-    return {"llm": llm_provider, "model": settings.GROQ_DEFAULT_MODEL if llm_provider == "groq" else settings.OPENROUTER_DEFAULT_MODEL}
+    return {
+        "llm": llm_provider,
+        "model": settings.GROQ_DEFAULT_MODEL if llm_provider == "groq" else settings.OPENROUTER_DEFAULT_MODEL if llm_provider == "openrouter" else settings.GEMINI_DEFAULT_MODEL
+    }

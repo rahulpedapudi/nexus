@@ -24,6 +24,8 @@ class Settings(BaseSettings):
         "GROQ_DEFAULT_MODEL") or "openai/gpt-oss-120b"
     OPENROUTER_DEFAULT_MODEL: str = creds_store.get(
         "OPENROUTER_DEFAULT_MODEL") or "openrouter/free"
+    GEMINI_DEFAULT_MODEL: str = creds_store.get(
+        "GEMINI_DEFAULT_MODEL") or "gemini-3.5-flash"
     GOOGLE_API_KEY: str = creds_store.get("GOOGLE_API_KEY") or ""
     EMBEDDING_MODEL: str = creds_store.get(
         "EMBEDDING_MODEL") or "gemini-embedding-2"

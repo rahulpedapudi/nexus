@@ -2,6 +2,7 @@ import logging
 from .base import BaseLLMProvider
 from .groq_provider import GroqProvider
 from .openrouter_provider import OpenRouterProvider
+from .gemini_provider import GeminiProvider
 
 from app.core.config import settings
 from app.core.credentials import creds_store
@@ -59,7 +60,23 @@ def build_llm_provider() -> BaseLLMProvider:
             site_url=getattr(settings, "SITE_URL", ""),
             app_name=getattr(settings, "APP_NAME", "Nexus"),
         )
+    elif provider == "gemini":
+        try:
+            api_key = creds_store.get("GOOGLE_API_KEY")
+        except Exception as e:
+            logger.warning(
+                "Failed to load GOOGLE_API_KEY from credentials: %s", e)
+            return None
+
+        if api_key is None:
+            logger.warning("GOOGLE_API_KEY not found in credentials")
+            return None
+
+        return GeminiProvider(
+            api_key=api_key,
+            default_model=settings.GEMINI_DEFAULT_MODEL,
+        )
     else:
         raise ValueError(
-            f"Unknown LLM_PROVIDER='{provider}'. Valid options: groq, openrouter"
+            f"Unknown LLM_PROVIDER='{provider}'. Valid options: groq, openrouter, gemini"
         )
