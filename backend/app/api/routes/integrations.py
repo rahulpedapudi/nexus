@@ -1,28 +1,34 @@
 """
-Google OAuth2 integration routes.
+Google OAuth2 integration routes — Desktop / Installed App flow via SSE.
 
 Flow:
-    1.  GET /integrations/google/connect
-        → Authenticated user hits this; backend redirects to Google consent screen.
-          The user's ID is signed into the `state` parameter so the callback
-          can identify them without a session.
+    GET /integrations/google/connect   (text/event-stream)
 
-    2.  GET /integrations/google/callback?code=...&state=...
-        → Google redirects here after consent.
-          Backend verifies the `state`, exchanges `code` for tokens, and
-          upserts an OAuthToken row for the user.
+    The endpoint streams two Server-Sent Events:
+
+    1.  data: {"type": "url",  "auth_url": "https://accounts.google.com/..."}
+        Emitted immediately — the TUI displays this URL so the user can open
+        it in their browser.
+
+    2.  data: {"type": "done", "status": "connected", "provider": "google"}
+        Emitted after Google redirects back, the code is exchanged for tokens,
+        and the tokens are persisted in the DB.
+
+    On any error:
+        data: {"type": "error", "detail": "..."}
 """
+import asyncio
+import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-
 
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.db.database import get_db
-
 from app.agent.tools.integrations.google import auth
 
 
@@ -30,37 +36,67 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/integrations")
 
+# Thread pool for the blocking wait_for_code() call
+_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="google-oauth")
 
-# Routes
+
+def _sse(data: dict) -> str:
+    """Format a dict as a Server-Sent Event data line."""
+    return f"data: {json.dumps(data)}\n\n"
+
 
 @router.get("/google/connect")
-def connect_google(
+async def connect_google_sse(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Return the Google consent screen URL for the authenticated user.
-    The user ID and PKCE code_verifier are both signed into `state` so
-    the stateless callback can reconstruct the full token exchange.
+    SSE endpoint that drives the two-phase Google OAuth flow.
+
+    Phase 1 (instant): generate the auth URL → stream it to the client.
+    Phase 2 (blocking in thread): wait for the redirect, exchange the code,
+                                  persist tokens → stream completion event.
     """
-    return auth.connect_google(db, current_user)
+    loop = asyncio.get_event_loop()
 
+    async def event_stream():
+        # ── Phase 1: build the auth URL (no blocking I/O) ──────────────────
+        try:
+            auth_url, flow = auth.build_auth_url()
+        except Exception as exc:
+            logger.exception("Google OAuth: failed to build auth URL")
+            yield _sse({"type": "error", "detail": str(exc)})
+            return
 
-@router.get("/google/callback")
-def google_callback(
-    code: str,
-    state: str,
-    db: Session = Depends(get_db),
-):
-    try:
-        auth.google_callback(code, state, db)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        )
+        yield _sse({"type": "url", "auth_url": auth_url})
 
-    return JSONResponse(
-        status_code=200,
-        content={"status": "connected", "provider": "google"},
+        # ── Phase 2: wait for redirect + token exchange (blocking I/O) ─────
+        try:
+            token_data = await loop.run_in_executor(
+                _executor, auth.wait_for_code, flow
+            )
+        except Exception as exc:
+            logger.exception("Google OAuth: token exchange failed")
+            yield _sse({"type": "error", "detail": str(exc)})
+            return
+
+        # ── Persist tokens ──────────────────────────────────────────────────
+        try:
+            auth._upsert_token(db, current_user.id, token_data)
+        except Exception as exc:
+            logger.exception("Google OAuth: failed to persist token")
+            yield _sse({"type": "error", "detail": f"Token storage failed: {exc}"})
+            return
+
+        logger.info("Google connected for user_id=%s", current_user.id)
+        yield _sse({"type": "done", "status": "connected", "provider": "google"})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering if present
+            "Connection": "keep-alive",
+        },
     )
