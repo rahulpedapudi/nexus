@@ -24,6 +24,7 @@ export interface NexusCredentials {
   EMBEDDING_MODEL?: string;
   GOOGLE_API_KEY?: string;
   ENABLED_GATEWAYS?: string[];
+  ENABLED_INTEGRATIONS?: string[];
 
   telegram?: object;
   discord?: object;
@@ -97,4 +98,28 @@ export function clearConfig(): void {
   if (fs.existsSync(CONFIG_PATH)) {
     fs.unlinkSync(CONFIG_PATH);
   }
+}
+
+export function handleGoogleCreds(filePath: string) {
+  if (!filePath.endsWith(".json")) {
+    return;
+  }
+
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+
+  let googleCreds;
+
+  try {
+    if (fs.existsSync(filePath)) {
+      googleCreds = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    }
+  } catch {
+    // Ignore
+  }
+
+  const GOOGLE_CREDS_PATH = path.join(CONFIG_DIR, "google-credentials.json");
+
+  fs.writeFileSync(GOOGLE_CREDS_PATH, JSON.stringify(googleCreds), "utf-8");
 }

@@ -3,20 +3,12 @@ import { Box, Text, useInput } from "ink";
 import SelectInput from "ink-select-input";
 import type { Screen } from "../api/types.js";
 import { Footer } from "../components/Footer.js";
-
-const NEXUS_LOGO = `
-███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗
-████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝
-██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗
-██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║
-██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║
-╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝`.trim();
+import { Logo } from "../components/Logo.js";
 
 const MENU_ITEMS = [
   // { label: "Chat", value: "chat" as Screen },
   { label: "Config Editor", value: "config-editor" as Screen },
-  { label: "Integrations", value: "integrations" as Screen },
-  // { label: "⚡  Setup Wizard", value: "setup-wizard" as Screen },
+  { label: "Gateways & Integrations", value: "integrations" as Screen },
 ];
 
 interface MainMenuProps {
@@ -45,39 +37,8 @@ export function MainMenu({
     <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
       {/* Logo */}
       <Box flexDirection="column" marginBottom={2} alignItems="center">
-        {NEXUS_LOGO.split("\n").map((line, i) => (
-          <Text key={i} color="cyan" bold>
-            {line}
-          </Text>
-        ))}
-        <Text color="gray" dimColor>
-          Self-hosted Personal AI Agent
-        </Text>
+        <Logo color="cyan" subtitle="Self-hosted Personal AI Agent" />
       </Box>
-
-      {/* Status badge */}
-      {/* {!hasConfig && (
-        <Box
-          borderStyle="round"
-          borderColor="yellow"
-          paddingX={2}
-          paddingY={0}
-          marginBottom={1}
-          alignSelf="flex-start">
-          <Text color="yellow">⚠ Not configured — run Setup Wizard first</Text>
-        </Box>
-      )}
-      {hasConfig && (
-        <Box
-          borderStyle="round"
-          borderColor="green"
-          paddingX={2}
-          paddingY={0}
-          marginBottom={1}
-          alignSelf="flex-start">
-          <Text color="green">✓ Configured and ready</Text>
-        </Box>
-      )} */}
 
       {/* Menu */}
       <Box flexDirection="column" marginBottom={1}>

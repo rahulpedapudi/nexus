@@ -76,6 +76,7 @@ export interface DashboardStats {
 
 export interface Integration {
   name: string;
+  category: "Gateways" | "Integrations";
   displayName: string;
   connected: boolean;
   connectedAt?: string;
