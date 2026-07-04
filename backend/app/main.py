@@ -10,15 +10,18 @@ from app.bot.discord_handler import start_discord, stop_discord
 from app.core.logging import setup_logging
 from app.api.routes import auth, chat, conversations, keys, memory, task, integrations, settings
 
+from app.api.routes.google import calendar as google_calendar, gmail as google_gmail
+
 
 # Register tools
 from app.agent.tools import tasks, memories
-from app.agent.tools.integrations.google import calendar
+from app.agent.tools.integrations.google import calendar, gmail
 
 tasks.register()
 memories.register()
 calendar.register()
-
+gmail.register()
+    
 setup_logging()
 
 
@@ -107,6 +110,14 @@ app.include_router(
 app.include_router(
     router=settings.router,
     tags=["settings"]
+)
+
+app.include_router(
+    router=google_calendar.router
+)
+
+app.include_router(
+    router=google_gmail.router
 )
 
 

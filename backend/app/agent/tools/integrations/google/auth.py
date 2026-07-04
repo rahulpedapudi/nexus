@@ -34,9 +34,11 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 CLIENT_SECRETS_FILE = Path.home() / ".nexus" / "google-credentials.json"
 
 SCOPES = [
-    "https://www.googleapis.com/auth/calendar",
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
 ]
 
 

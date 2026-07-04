@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     OPENROUTER_DEFAULT_MODEL: str = creds_store.get(
         "OPENROUTER_DEFAULT_MODEL") or "openrouter/free"
     GEMINI_DEFAULT_MODEL: str = creds_store.get(
-        "GEMINI_DEFAULT_MODEL") or "gemini-3.5-flash"
+        "GEMINI_DEFAULT_MODEL") or "gemini-3.1-flash-lite"
     GOOGLE_API_KEY: str = creds_store.get("GOOGLE_API_KEY") or ""
     EMBEDDING_MODEL: str = creds_store.get(
         "EMBEDDING_MODEL") or "gemini-embedding-2"
@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     # auth settings
     SECRET_KEY: str = JWT_SECRET
+
+    TODOIST_URL: str = "https://api.todoist.com/rest/v2"
+    
+    TODOIST_TOKEN: str = ""
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7   # 7 days
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
