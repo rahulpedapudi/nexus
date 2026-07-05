@@ -28,7 +28,7 @@ async function request<T>(
   tokenOverride?: string,
 ): Promise<T> {
   const cfg = readConfig();
-  const base = baseUrlOverride ?? cfg.baseUrl ?? "http://localhost:8000";
+  const base = baseUrlOverride ?? cfg.baseUrl ?? "http://localhost:8421";
   const token = tokenOverride ?? cfg.token;
 
   const headers: Record<string, string> = {
@@ -327,7 +327,7 @@ export async function* streamChat(
   data: MessageCreate,
 ): AsyncGenerator<StreamEvent> {
   const cfg = readConfig();
-  const base = cfg.baseUrl ?? "http://localhost:8000";
+  const base = cfg.baseUrl ?? "http://localhost:8421";
   const token = cfg.token;
 
   const res = await fetch(`${base.replace(/\/$/, "")}/chat/stream`, {

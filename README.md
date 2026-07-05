@@ -29,7 +29,7 @@ After install:
 
 ```
 Web UI  →  http://localhost:3000
-API     →  http://localhost:8000
+API     →  http://localhost:8421
 
 Run `nexus` to open the terminal UI
 ```

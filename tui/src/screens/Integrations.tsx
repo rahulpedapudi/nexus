@@ -88,7 +88,7 @@ export function Integrations({ onBack }: IntegrationsProps) {
     null,
   );
   const [authToken, setAuthToken] = useState("");
-  const [apiBaseUrl, setApiBaseUrl] = useState("http://localhost:8000");
+  const [apiBaseUrl, setApiBaseUrl] = useState("http://localhost:8421");
 
   // ── Load connection statuses ──────────────────────────────────────
 
@@ -96,7 +96,7 @@ export function Integrations({ onBack }: IntegrationsProps) {
     try {
       const cfg = readConfig();
       setAuthToken(cfg.token ?? "");
-      setApiBaseUrl(cfg.baseUrl ?? "http://localhost:8000");
+      setApiBaseUrl(cfg.baseUrl ?? "http://localhost:8421");
 
       const creds = readCredentials();
       const enabled = [
@@ -169,12 +169,17 @@ export function Integrations({ onBack }: IntegrationsProps) {
 
   // ── Mark an integration disconnected ──────────────────────────────
 
-  const markDisconnected = useCallback((intg: Integration) => {
-    setIntegrations((prev) =>
-      prev.map((i) => (i.name === intg.name ? { ...i, connected: false } : i)),
-    );
-    goList();
-  }, [goList]);
+  const markDisconnected = useCallback(
+    (intg: Integration) => {
+      setIntegrations((prev) =>
+        prev.map((i) =>
+          i.name === intg.name ? { ...i, connected: false } : i,
+        ),
+      );
+      goList();
+    },
+    [goList],
+  );
 
   // ── Footer hints per sub-screen ───────────────────────────────────
 
@@ -218,7 +223,10 @@ export function Integrations({ onBack }: IntegrationsProps) {
         return selected ? (
           <ConnectForm
             integration={selected}
-            onDone={(intg) => { markConnected(intg); goList(); }}
+            onDone={(intg) => {
+              markConnected(intg);
+              goList();
+            }}
             onBack={goList}
           />
         ) : null;
@@ -290,7 +298,11 @@ export function Integrations({ onBack }: IntegrationsProps) {
               setIntegrations((prev) =>
                 prev.map((i) =>
                   i.name === "google"
-                    ? { ...i, connected: true, connectedAt: new Date().toISOString() }
+                    ? {
+                        ...i,
+                        connected: true,
+                        connectedAt: new Date().toISOString(),
+                      }
                     : i,
                 ),
               );
@@ -313,8 +325,7 @@ export function Integrations({ onBack }: IntegrationsProps) {
         paddingX={2}
         paddingY={1}
         marginTop={1}
-        flexDirection="column"
-      >
+        flexDirection="column">
         {renderSubScreen()}
       </Box>
 

@@ -35,7 +35,7 @@ export function DisconnectConfirm({
           await disableGateway(
             integration.name,
             cfg.token ?? "",
-            cfg.baseUrl ?? "http://localhost:8000",
+            cfg.baseUrl ?? "http://localhost:8421",
           );
         } else {
           const creds = readCredentials();
@@ -61,8 +61,7 @@ export function DisconnectConfirm({
       </Text>
       {integration.connectedAt && (
         <Text color="gray" dimColor>
-          Connected since{" "}
-          {new Date(integration.connectedAt).toLocaleString()}
+          Connected since {new Date(integration.connectedAt).toLocaleString()}
         </Text>
       )}
       <Text color="yellow">⚠ Are you sure you want to disconnect?</Text>
@@ -88,8 +87,7 @@ export function DisconnectConfirm({
                     ? "red"
                     : "cyan"
                   : "white"
-              }
-            >
+              }>
               {label}
             </Text>
           )}

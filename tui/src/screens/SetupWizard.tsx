@@ -43,7 +43,7 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   const [stepIdx, setStepIdx] = useState(0);
 
   // Cross-step state collected as we proceed
-  const [baseUrl] = useState("http://localhost:8000");
+  const [baseUrl] = useState("http://localhost:8421");
   const [token, setToken] = useState("");
   const [refreshToken, setRefreshToken] = useState("");
   const [savedUsername, setSavedUsername] = useState("");
@@ -97,26 +97,30 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
 
       case "gateway":
         return (
-          <GatewayStep
-            authToken={token}
-            baseUrl={baseUrl}
-            onDone={nextStep}
-          />
+          <GatewayStep authToken={token} baseUrl={baseUrl} onDone={nextStep} />
         );
 
       case "done":
         return (
           <Box flexDirection="column" gap={1}>
             <Box flexDirection="column" alignItems="center" gap={1}>
-              <Text color="green" bold>╔══════════════════════════════╗</Text>
-              <Text color="green" bold>║       ✓ Nexus is Ready!      ║</Text>
-              <Text color="green" bold>╚══════════════════════════════╝</Text>
+              <Text color="green" bold>
+                ╔══════════════════════════════╗
+              </Text>
+              <Text color="green" bold>
+                ║ ✓ Nexus is Ready! ║
+              </Text>
+              <Text color="green" bold>
+                ╚══════════════════════════════╝
+              </Text>
             </Box>
 
             <Box flexDirection="column" gap={1} marginTop={1}>
               <Box gap={2}>
-                <Text color="gray">API URL  </Text>
-                <Text color="cyan" bold>{baseUrl}</Text>
+                <Text color="gray">API URL </Text>
+                <Text color="cyan" bold>
+                  {baseUrl}
+                </Text>
               </Box>
               <Box gap={2}>
                 <Text color="gray">Username </Text>
@@ -133,7 +137,9 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
             </Text>
 
             <Box marginTop={1}>
-              <Text color="cyan" bold>Press Enter to start chatting →</Text>
+              <Text color="cyan" bold>
+                Press Enter to start chatting →
+              </Text>
             </Box>
 
             <Footer hints={[{ key: "Enter", label: "open chat" }]} />
@@ -158,8 +164,7 @@ export function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
         paddingY={1}
         flexDirection="column"
         flexGrow={1}
-        gap={1}
-      >
+        gap={1}>
         {renderStep()}
       </Box>
     </Box>

@@ -20,7 +20,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "${PORT:-8000}:8000"
+      - "${PORT:-8421}:8421"
     env_file:
       - ${NEXUS_HOME:-~/.nexus}/.env
     environment:
@@ -31,7 +31,7 @@ services:
     volumes:
       - ${NEXUS_HOME:-~/.nexus}/context:/app/context:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8421/health"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -47,7 +47,7 @@ export function useGoogleOAuth(onConnected: () => void) {
 
   const startGoogleOAuth = useCallback(async () => {
     const cfg = readConfig();
-    const base = cfg.baseUrl ?? "http://localhost:8000";
+    const base = cfg.baseUrl ?? "http://localhost:8421";
     const token = cfg.token ?? "";
 
     // Cancel any previous in-flight request

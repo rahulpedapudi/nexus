@@ -28,7 +28,7 @@ export function ConnectForm({ integration, onDone, onBack }: ConnectFormProps) {
       const cfg = readConfig();
       const firstValue = Object.values(fieldValues)[0] ?? "";
       const res = await fetch(
-        `${cfg.baseUrl ?? "http://localhost:8000"}/keys/create`,
+        `${cfg.baseUrl ?? "http://localhost:8421"}/keys/create`,
         {
           method: "POST",
           headers: {
@@ -78,8 +78,7 @@ export function ConnectForm({ integration, onDone, onBack }: ConnectFormProps) {
           <Box
             borderStyle="round"
             borderColor={idx === focusedField ? "cyan" : "gray"}
-            paddingX={1}
-          >
+            paddingX={1}>
             <TextInput
               value={fieldValues[field.key] ?? ""}
               onChange={(val) =>

@@ -103,7 +103,7 @@ section "Starting services..."
 
 export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d= -f2)
 export NEXUS_HOME="$NEXUS_HOME"
-export PORT=$(grep "^PORT=" "$ENV_FILE" | cut -d= -f2 || echo 8000)
+export PORT=$(grep "^PORT=" "$ENV_FILE" | cut -d= -f2 || echo 8421)
 
 NEXUS_HOME="$NEXUS_HOME" docker compose \
   -f "$INSTALL_DIR/compose.yaml" \
@@ -120,7 +120,7 @@ NEXUS_HOME="$NEXUS_HOME" docker compose \
 
 # ── 7. wait for api ───────────────────────────────────────────
 info "Waiting for API to be ready..."
-API_PORT=$(grep -E '^PORT=' "$ENV_FILE" | cut -d= -f2 || echo 8000)
+API_PORT=$(grep -E '^PORT=' "$ENV_FILE" | cut -d= -f2 || echo 8421)
 for i in $(seq 1 30); do
   if curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
     break
