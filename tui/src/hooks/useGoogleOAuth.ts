@@ -7,11 +7,11 @@ import { readConfig, writeCredentials } from "../config.js";
 // ---------------------------------------------------------------------------
 
 export type GoogleOAuthStatus =
-  | "setup"        // waiting for user to provide credentials file path
-  | "waiting"      // generating the auth URL
+  | "setup" // waiting for user to provide credentials file path
+  | "waiting" // generating the auth URL
   | "open-browser" // URL ready, waiting for sign-in
-  | "done"         // connected successfully
-  | "error";       // something went wrong
+  | "done" // connected successfully
+  | "error"; // something went wrong
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -27,13 +27,13 @@ export type GoogleOAuthStatus =
 export function useGoogleOAuth(onConnected: () => void) {
   const [googleAuthUrl, setGoogleAuthUrl] = useState("");
   const [googleOAuthStatus, setGoogleOAuthStatus] =
-    useState<GoogleOAuthStatus>("waiting");
+    useState<GoogleOAuthStatus>("setup");
   const [googleError, setGoogleError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
   const resetState = useCallback(() => {
     setGoogleAuthUrl("");
-    setGoogleOAuthStatus("waiting");
+    setGoogleOAuthStatus("setup");
     setGoogleError("");
   }, []);
 

@@ -30,7 +30,28 @@ export interface NexusCredentials {
   discord?: object;
 }
 
-const CONFIG_DIR = path.join(os.homedir(), ".nexus");
+/**
+ * Resolves the Nexus data directory, in priority order:
+ *   1. NEXUS_HOME env var (set by the install.sh launcher, or user-overridden)
+ *   2. Windows  → %APPDATA%\nexus  (e.g. C:\Users\You\AppData\Roaming\nexus)
+ *   3. macOS / Linux → ~/.nexus  (matches install.sh default)
+ */
+function getNexusHome(): string {
+  const env = process.env["NEXUS_HOME"];
+  if (env) return env;
+
+  if (process.platform === "win32") {
+    const appdata =
+      process.env["APPDATA"] ?? path.join(os.homedir(), "AppData", "Roaming");
+    return path.join(appdata, "nexus");
+  }
+
+  // macOS and Linux both use ~/.nexus to stay consistent with install.sh
+  return path.join(os.homedir(), ".nexus");
+}
+
+const CONFIG_DIR = getNexusHome();
+
 const CONFIG_PATH = path.join(CONFIG_DIR, "cli-config.json");
 const CREDS_PATH = path.join(CONFIG_DIR, "credentials.json");
 
