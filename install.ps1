@@ -15,7 +15,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # ── Config ────────────────────────────────────────────────────
-$NexusHome  = if ($env:NEXUS_HOME) { $env:NEXUS_HOME } else { Join-Path $env:USERPROFILE ".nexus" }
+$NexusHome  = if ($env:NEXUS_HOME) { $env:NEXUS_HOME } else { Join-Path $env:APPDATA "nexus" }
 $RepoUrl    = "https://github.com/rahulpedapudi/nexus"
 $InstallDir = Join-Path $NexusHome "repo"
 $BinDir     = Join-Path $NexusHome "bin"

@@ -1,6 +1,6 @@
 # Nexus
 
-A self-hosted personal AI agent. Runs on your VPS or home server. Talks to you via Telegram, Discord, or a web UI. Remembers things, manages tasks, checks your calendar, and can be extended with custom tools and skills.
+A self-hosted personal AI agent. Runs on your VPS or home server. Talks to you via Telegram, Discord, or the terminal UI. Remembers things, manages tasks, checks your calendar, and can be extended with custom tools and skills.
 
 You own the data. You control the model. No cloud required.
 
@@ -8,7 +8,7 @@ You own the data. You control the model. No cloud required.
 
 ## What it does
 
-- **Chat** — conversational AI via Telegram, Discord, or the web UI
+- **Chat** — conversational AI via Telegram, Discord, or the terminal UI
 - **Memory** — remembers context across conversations using pgvector semantic search
 - **Tasks & reminders** — create todos and reminders, get notified via your bot
 - **Calendar & Gmail** — read and act on your Google Calendar and Gmail
@@ -38,8 +38,7 @@ Requires: **Git**, **Docker** (installed automatically if missing), **Node.js 20
 After install:
 
 ```
-Web UI  →  http://localhost:3000
-API     →  http://localhost:8421
+API  →  http://localhost:8421
 
 Run `nexus` to open the terminal UI
 ```
@@ -49,36 +48,41 @@ Run `nexus` to open the terminal UI
 ## How it works
 
 ```text
-~/.nexus/  (or %USERPROFILE%\.nexus\ on Windows)
-  .env              ← your secrets and config (generated on install)
+~/.nexus/  (Linux / macOS)
+%APPDATA%\nexus\  (Windows — e.g. C:\Users\You\AppData\Roaming\nexus)
+
+  .env                ← secrets and infra config (generated on install)
+  credentials.json    ← API keys, LLM provider, gateway tokens
   context/
-    SOUL.md         ← Nexus's personality and tone
-    DIRECTIVES.md   ← hard rules and constraints
+    SOUL.md           ← Nexus's personality and tone
+    DIRECTIVES.md     ← hard rules and constraints
   data/
-    pgdata/         ← Postgres data (pgvector)
+    pgdata/           ← Postgres data (pgvector)
   logs/
 ```
 
 The `context/` files are plain markdown. Edit them directly to customize how Nexus behaves. Nexus reads them on every request — no restart needed.
 
+> **Note:** The `NEXUS_HOME` environment variable can override the default data directory on any platform.
+
 ---
 
 ## Requirements
 
-| Requirement                   | Notes                            |
-| ----------------------------- | -------------------------------- |
-| Docker + Compose plugin       | Auto-installed by install script |
-| Node.js 20+                   | Auto-installed by install script |
-| A Groq or OpenRouter API key  | For the LLM                      |
-| A Google API key              | For embeddings (Gemini)          |
-| Telegram or Discord bot token | Optional — for bot access        |
+| Requirement                          | Notes                            |
+| ------------------------------------ | -------------------------------- |
+| Docker + Compose plugin              | Auto-installed by install script |
+| Node.js 20+                          | Auto-installed by install script |
+| A Groq, OpenRouter, or Gemini API key | For the LLM                     |
+| A Google API key                     | For embeddings (Gemini)          |
+| Telegram or Discord bot token        | Optional — for bot access        |
 
 
 ---
 
 ## Integrations
 
-Integrations are configured through the TUI (`nexus` → Integrations) or via the web UI. Available integrations:
+Integrations are configured through the TUI (`nexus` → Integrations). Available integrations:
 
 - **Google Calendar** — read events, create reminders
 - **Gmail** — read and summarize emails
@@ -90,7 +94,10 @@ Integrations are configured through the TUI (`nexus` → Integrations) or via th
 
 ## Customizing Nexus
 
-Edit the files in `~/.nexus/context/` (on Windows: `%USERPROFILE%\.nexus\context\`) directly:
+Edit the files in your Nexus data directory's `context/` folder directly:
+
+- **Linux / macOS:** `~/.nexus/context/`
+- **Windows:** `%APPDATA%\nexus\context\`
 
 **`SOUL.md`** — Nexus's identity. How it speaks, what it values, its tone.
 
@@ -119,26 +126,25 @@ sudo rm /usr/local/bin/nexus
 ```powershell
 # stop and remove containers
 nexus stop
-docker compose -f "$env:USERPROFILE\.nexus\repo\compose.yaml" down --volumes
+docker compose -f "$env:APPDATA\nexus\repo\compose.yaml" down --volumes
 
 # remove everything
-Remove-Item -Recurse -Force "$env:USERPROFILE\.nexus"
+Remove-Item -Recurse -Force "$env:APPDATA\nexus"
 ```
 
 ---
 
 ## Stack
 
-| Layer       | Tech                                  |
-| ----------- | ------------------------------------- |
-| Backend     | Python, FastAPI, SQLAlchemy, Alembic  |
-| Database    | PostgreSQL 16 + pgvector              |
-| LLM         | Groq / OpenRouter (provider-agnostic) |
-| Embeddings  | Gemini Embedding                      |
-| Web UI      | React, TypeScript, Vite               |
-| Terminal UI | TypeScript, Ink                       |
-| Bots        | Telegram, Discord                     |
-| Deployment  | Docker Compose                        |
+| Layer       | Tech                                    |
+| ----------- | --------------------------------------- |
+| Backend     | Python, FastAPI, SQLAlchemy, Alembic    |
+| Database    | PostgreSQL 16 + pgvector               |
+| LLM         | Groq / OpenRouter / Gemini (pluggable)  |
+| Embeddings  | Gemini Embedding                        |
+| Terminal UI | TypeScript, Ink                         |
+| Bots        | Telegram, Discord                       |
+| Deployment  | Docker Compose                          |
 
 ---
 
