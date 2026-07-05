@@ -27,13 +27,7 @@ case "${1:-help}" in
   tui)
     exec node "$INSTALL_DIR/tui/dist/index.js"
     ;;
-  open)
-    CLIENT_PORT=$(grep -E '^CLIENT_PORT=' "$NEXUS_HOME/.env" | cut -d= -f2 || echo 3000)
-    xdg-open "http://localhost:${CLIENT_PORT}" 2>/dev/null \
-      || open "http://localhost:${CLIENT_PORT}" 2>/dev/null \
-      || echo "Open http://localhost:${CLIENT_PORT} in your browser"
-    ;;
   *)
-    echo "Usage: nexus.sh [start|stop|restart|update|logs|status|shell|db|backup|tui|open]"
+    echo "Usage: nexus.sh [start|stop|restart|update|logs|status|shell|db|backup|tui]"
     ;;
 esac

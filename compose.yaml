@@ -35,14 +35,3 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "${CLIENT_PORT:-3000}:80"
-    depends_on:
-      api:
-        condition: service_healthy

@@ -51,10 +51,15 @@ CREDENTIALS_FILE="$NEXUS_HOME/credentials.json"
 
 if [ ! -f "$CREDENTIALS_FILE" ]; then
   info "Creating $CREDENTIALS_FILE..."
-  echo "{}" > "$CREDENTIALS_FILE"
+  cp "$INSTALL_DIR/.credentials.json.example" "$CREDENTIALS_FILE"
 else
   info "$CREDENTIALS_FILE already exists — skipping."
 fi
+
+warn "LLM/bot keys left blank — fill them in at: $CREDENTIALS_FILE"
+warn "Then run: nexus (to open the TUI and configure everything)"
+
+
 
 if [ ! -f "$ENV_FILE" ]; then
   info "Generating secrets..."
@@ -69,33 +74,36 @@ if [ ! -f "$ENV_FILE" ]; then
   sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|"             "$ENV_FILE"
   sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" "$ENV_FILE"
   sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|"             "$ENV_FILE"
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://nexus:${POSTGRES_PASSWORD}@db:5432/nexus|"             "$ENV_FILE"
+  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://nexus:${POSTGRES_PASSWORD}@db:5432/nexus|" "$ENV_FILE"
 
 
-  warn "LLM/bot keys left blank — fill them in at: $ENV_FILE"
-  warn "Then run: nexus (to open the TUI and configure everything)"
 else
   info ".env already exists — skipping."
 fi
 
 # ── 4. seed context files ─────────────────────────────────────
-for f in SOUL.md PERSONA.md SKILLS.md DIRECTIVES.md; do
+for f in SOUL.md DIRECTIVES.md; do
   dest="$NEXUS_HOME/context/$f"
-  src="$INSTALL_DIR/backend/context/defaults/$f"
+  src="$INSTALL_DIR/context/$f"
   if [ ! -f "$dest" ]; then
-    [ -f "$src" ] && cp "$src" "$dest" || touch "$dest"
-    info "Created context/$f"
+    if [ -f "$src" ]; then
+      cp "$src" "$dest"
+      info "Created context/$f"
+    else
+      touch "$dest"
+      warn "context/$f not found in repo — created empty file"
+    fi
+  else
+    info "context/$f already exists — skipping."
   fi
 done
 
 # ── 5. start services ─────────────────────────────────────────
 section "Starting services..."
 
-# exporting so that the compose yaml picks it up
 export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d= -f2)
 export NEXUS_HOME="$NEXUS_HOME"
 export PORT=$(grep "^PORT=" "$ENV_FILE" | cut -d= -f2 || echo 8000)
-export CLIENT_PORT=$(grep "^CLIENT_PORT=" "$ENV_FILE" | cut -d= -f2 || echo 3000)
 
 NEXUS_HOME="$NEXUS_HOME" docker compose \
   -f "$INSTALL_DIR/compose.yaml" \
@@ -105,15 +113,10 @@ NEXUS_HOME="$NEXUS_HOME" docker compose \
 # ── 6. run migrations ─────────────────────────────────────────
 info "Running database migrations..."
 
-
-export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d= -f2)
-export NEXUS_HOME="$NEXUS_HOME"
-
 NEXUS_HOME="$NEXUS_HOME" docker compose \
   -f "$INSTALL_DIR/compose.yaml" \
   --env-file "$ENV_FILE" \
   exec -T api alembic upgrade head < /dev/null
-
 
 # ── 7. wait for api ───────────────────────────────────────────
 info "Waiting for API to be ready..."
@@ -148,12 +151,9 @@ sudo chmod +x "$BIN_PATH"
 info "nexus command installed at $BIN_PATH"
 
 # ── 9. done ───────────────────────────────────────────────────
-CLIENT_PORT=$(grep -E '^CLIENT_PORT=' "$ENV_FILE" | cut -d= -f2 || echo 3000)
-
 echo ""
 echo -e "${GREEN}${BOLD}✓ Nexus is ready.${NC}"
 echo ""
-echo -e "  Web UI   → http://localhost:${CLIENT_PORT}"
 echo -e "  API      → http://localhost:${API_PORT}"
 echo -e "  Config   → $ENV_FILE"
 echo -e "  Context  → $NEXUS_HOME/context/"
