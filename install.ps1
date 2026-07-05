@@ -82,12 +82,12 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 # Verify Compose plugin (ships with Docker Desktop)
-try { docker compose version | Out-Null }
-catch { Write-Err "Docker Compose plugin missing. Update Docker Desktop to a recent version." }
+docker compose version 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) { Write-Err "Docker Compose plugin missing. Update Docker Desktop to a recent version." }
 
 # Make sure Docker daemon is actually running
-try { docker info 2>$null | Out-Null }
-catch {
+docker info 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
     Write-Err "Docker is installed but not running.`n  Start Docker Desktop and re-run this script."
 }
 
@@ -165,10 +165,8 @@ if (-not (Test-Path $EnvFile)) {
         $FernetKey = & python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>$null
     } catch {}
     if (-not $FernetKey) {
-        $buf = New-Object byte[] 32
-        [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($buf)
-        $FernetKey = [Convert]::ToBase64String($buf) + "="
-    }
+        Write-Err "Python (with 'cryptography' package) is required to generate a Fernet key.`n  Run: pip install cryptography`n  Then re-run this installer."
+    }   
 
     Set-EnvFileLine $EnvFile "JWT_SECRET"        $JwtSecret
     Set-EnvFileLine $EnvFile "POSTGRES_PASSWORD" $PostgresPassword
@@ -206,14 +204,26 @@ $env:NEXUS_HOME        = $NexusHome
 $env:PORT              = if ($envMap["PORT"]) { $envMap["PORT"] } else { "8421" }
 
 # Docker on Windows needs forward slashes in paths for volume mounts
-$ComposeFile = ($InstallDir + "\compose.yaml").Replace("\", "/")
+$ComposeFile = Join-Path $InstallDir "compose.yaml"
 
-docker compose -f "$InstallDir\compose.yaml" --env-file $EnvFile up -d --build
+docker compose -f "$ComposeFile" --env-file $EnvFile up -d --build
 if ($LASTEXITCODE -ne 0) { Write-Err "docker compose up failed." }
+
+#Postgres readiness check
+Write-Info "Waiting for Postgres to be ready..."
+$pgReady = $false
+for ($i = 1; $i -le 20; $i++) {
+    docker compose -f "$ComposeFile" --env-file $EnvFile exec -T db pg_isready -U nexus 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) { $pgReady = $true; break }
+    Write-Host -NoNewline "."
+    Start-Sleep -Seconds 2
+}
+Write-Host ""
+if (-not $pgReady) { Write-Err "Postgres did not become ready in time. Check 'docker compose logs db'." }
 
 # ── 6. Run migrations ─────────────────────────────────────────
 Write-Info "Running database migrations..."
-docker compose -f "$InstallDir\compose.yaml" --env-file $EnvFile exec -T api alembic upgrade head
+docker compose -f "$ComposeFile" --env-file $EnvFile exec -T api alembic upgrade head
 if ($LASTEXITCODE -ne 0) { Write-Err "Alembic migration failed." }
 
 # ── 7. Wait for API ───────────────────────────────────────────
@@ -258,7 +268,7 @@ node "$TuiEntry" %*
 
 # Add $BinDir to user PATH if not already present
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-if ($userPath -notlike "*$BinDir*") {
+if (($userPath -split ';') -notcontains $BinDir) {
     [Environment]::SetEnvironmentVariable("PATH", "$userPath;$BinDir", "User")
     Write-Warn "Added $BinDir to PATH. Restart your terminal for 'nexus' to be available."
 } else {
