@@ -20,10 +20,9 @@ Flow:
 import asyncio
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse, HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
@@ -35,9 +34,6 @@ from app.agent.tools.integrations.google import auth
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/integrations")
-
-# Thread pool for the blocking wait_for_code() call
-_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="google-oauth")
 
 
 def _sse(data: dict) -> str:
@@ -54,15 +50,13 @@ async def connect_google_sse(
     SSE endpoint that drives the two-phase Google OAuth flow.
 
     Phase 1 (instant): generate the auth URL → stream it to the client.
-    Phase 2 (blocking in thread): wait for the redirect, exchange the code,
-                                  persist tokens → stream completion event.
+    Phase 2 (async wait): await the callback from the ``/google/callback``
+                          route, then persist tokens → stream completion.
     """
-    loop = asyncio.get_event_loop()
-
     async def event_stream():
-        # ── Phase 1: build the auth URL (no blocking I/O) ──────────────────
+        # ── Phase 1: build the auth URL ─────────────────────────────────────
         try:
-            auth_url, flow = auth.build_auth_url()
+            auth_url, state = auth.build_auth_url()
         except Exception as exc:
             logger.exception("Google OAuth: failed to build auth URL")
             yield _sse({"type": "error", "detail": str(exc)})
@@ -70,11 +64,9 @@ async def connect_google_sse(
 
         yield _sse({"type": "url", "auth_url": auth_url})
 
-        # ── Phase 2: wait for redirect + token exchange (blocking I/O) ─────
+        # ── Phase 2: wait for the callback route to signal completion ─────
         try:
-            token_data = await loop.run_in_executor(
-                _executor, auth.wait_for_code, flow
-            )
+            token_data = await auth.wait_for_callback(state)
         except Exception as exc:
             logger.exception("Google OAuth: token exchange failed")
             yield _sse({"type": "error", "detail": str(exc)})
@@ -99,4 +91,43 @@ async def connect_google_sse(
             "X-Accel-Buffering": "no",  # disable nginx buffering if present
             "Connection": "keep-alive",
         },
+    )
+
+
+@router.get("/google/callback")
+async def google_oauth_callback(request: Request):
+    """
+    Receives the OAuth redirect from Google after the user grants consent.
+
+    Google sends ``code`` and ``state`` as query parameters. This route
+    exchanges the code for tokens (via ``auth.handle_callback``) and
+    signals the waiting SSE stream.
+    """
+    state = request.query_params.get("state", "")
+    code = request.query_params.get("code", "")
+
+    if not state or not code:
+        return HTMLResponse(
+            "<h2>Missing parameters.</h2><p>Please try connecting again from Nexus.</p>",
+            status_code=400,
+        )
+
+    try:
+        auth.handle_callback(state, code)
+    except ValueError as exc:
+        logger.exception("Google OAuth callback: invalid state")
+        return HTMLResponse(
+            f"<h2>OAuth error</h2><p>{exc}</p>",
+            status_code=400,
+        )
+    except Exception as exc:
+        logger.exception("Google OAuth callback: token exchange failed")
+        return HTMLResponse(
+            f"<h2>Authentication failed</h2><p>{exc}</p>",
+            status_code=500,
+        )
+
+    return HTMLResponse(
+        "<h2>Authentication complete!</h2>"
+        "<p>You may close this tab and return to Nexus.</p>",
     )

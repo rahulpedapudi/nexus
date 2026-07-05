@@ -1,12 +1,10 @@
 import os
-import socket
+import asyncio
 import logging
-from pathlib import Path
+import uuid
+from typing import Any
 
 from app.core.paths import get_nexus_home
-from datetime import datetime, UTC
-from urllib.parse import urlparse
-from wsgiref import simple_server
 from datetime import datetime, UTC, timedelta
 
 
@@ -17,12 +15,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
 
-# These internal helpers mirror what run_local_server() uses internally.
-# They provide a minimal WSGI app that captures the redirect and a silent
-# request handler. If google-auth-oauthlib ever removes them, see the note
-# at the bottom of this file for a hand-rolled replacement.
-# type: ignore[attr-defined]
-from google_auth_oauthlib.flow import _RedirectWSGIApp, _WSGIRequestHandler
+
 
 from app.models.user import User
 from app.models.oauth_tokens import OAuthToken
@@ -48,11 +41,9 @@ SCOPES = [
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _free_port() -> int:
-    """Ask the OS for a free TCP port."""
-    with socket.socket() as s:
-        s.bind(("localhost", 0))
-        return s.getsockname()[1]
+# In-flight OAuth flows, keyed by state token.
+# Value: (flow, asyncio.Event, result_holder dict)
+_pending_flows: dict[str, tuple[InstalledAppFlow, asyncio.Event, dict[str, Any]]] = {}
 
 
 def _make_flow(redirect_uri: str) -> InstalledAppFlow:
@@ -112,79 +103,102 @@ def _upsert_token(db: Session, user_id, token_data: dict) -> OAuthToken:
 # Two-phase OAuth — Phase 1: build URL
 # ---------------------------------------------------------------------------
 
-def build_auth_url() -> tuple[str, InstalledAppFlow]:
+REDIRECT_URI = "http://localhost:8421/integrations/google/callback"
+
+
+def build_auth_url() -> tuple[str, str]:
     """
     Phase 1 of the OAuth flow.
 
-    Picks a free OS port, creates the flow with a matching redirect URI, and
-    generates the Google consent URL — all without any blocking I/O.
+    Creates the flow with a fixed redirect URI pointing at the FastAPI
+    callback route (already exposed from Docker), generates a unique state
+    token, and returns the Google consent URL.
 
     Returns:
         auth_url:  The Google consent screen URL to show the user.
-        flow:      The configured flow object (pass to ``wait_for_code``).
+        state:     Unique state token that correlates the callback.
     """
-    port = _free_port()
-    redirect_uri = f"http://localhost:{port}/"
-    flow = _make_flow(redirect_uri)
+    state = uuid.uuid4().hex
+    flow = _make_flow(REDIRECT_URI)
 
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         prompt="consent",
         include_granted_scopes="true",
+        state=state,
     )
+
+    # Store the flow so the callback can complete the exchange
+    event = asyncio.Event()
+    _pending_flows[state] = (flow, event, {})
 
     logger.info(
-        "Google OAuth: generated consent URL (redirect_uri=%s)", redirect_uri
+        "Google OAuth: generated consent URL (redirect_uri=%s, state=%s)",
+        REDIRECT_URI, state,
     )
-    return auth_url, flow
+    return auth_url, state
 
 
 # ---------------------------------------------------------------------------
-# Two-phase OAuth — Phase 2: wait for redirect & exchange code
+# Two-phase OAuth — Phase 2a: handle the callback from Google
 # ---------------------------------------------------------------------------
 
-def wait_for_code(flow: InstalledAppFlow) -> dict:
+def handle_callback(state: str, code: str) -> None:
     """
-    Phase 2 of the OAuth flow.
+    Called by the ``/integrations/google/callback`` FastAPI route when
+    Google redirects back with the authorization code.
 
-    Starts a local WSGI server on the port embedded in ``flow.redirect_uri``,
-    blocks until Google redirects back with the authorization code, then
-    exchanges the code for tokens.
-
-    This is designed to run in a thread (via ``asyncio.run_in_executor``) so
-    it does not block the FastAPI event loop.
-
-    Returns a token_data dict suitable for ``_upsert_token``.
+    Exchanges the code for tokens and signals the waiting SSE stream.
     """
-    parsed = urlparse(flow.redirect_uri)
-    port = parsed.port
+    entry = _pending_flows.get(state)
+    if entry is None:
+        raise ValueError(f"Unknown or expired OAuth state: {state}")
 
-    wsgi_app = _RedirectWSGIApp(
-        "Authentication complete. You may close this tab and return to Nexus."
-    )
-    server = simple_server.make_server(
-        "localhost", port, wsgi_app, handler_class=_WSGIRequestHandler
-    )
+    flow, event, result_holder = entry
 
-    logger.info("Google OAuth: local server listening on port %d", port)
-    try:
-        server.handle_request()  # blocks until exactly one redirect arrives
-    finally:
-        server.server_close()
-
-    # _RedirectWSGIApp stores the last request URI; fetch_token needs https
-    redirect_response = wsgi_app.last_request_uri.replace("http", "https")
-    flow.fetch_token(authorization_response=redirect_response)
+    flow.fetch_token(code=code)
     creds = flow.credentials
 
-    logger.info("Google OAuth: token exchange complete")
-    return {
+    logger.info("Google OAuth: token exchange complete (state=%s)", state)
+
+    result_holder["token_data"] = {
         "token": creds.token,
         "refresh_token": creds.refresh_token,
         "id_token": getattr(creds, "id_token", None),
         "expiry": creds.expiry,         # naive UTC datetime from google-auth
         "scopes": list(creds.scopes or []),
     }
+    event.set()
+
+
+# ---------------------------------------------------------------------------
+# Two-phase OAuth — Phase 2b: await the callback from the SSE stream
+# ---------------------------------------------------------------------------
+
+async def wait_for_callback(state: str, timeout: float = 300) -> dict:
+    """
+    Awaits the ``asyncio.Event`` set by ``handle_callback`` so the SSE
+    stream can continue once the user finishes the browser consent flow.
+
+    Returns the token_data dict suitable for ``_upsert_token``.
+    """
+    entry = _pending_flows.get(state)
+    if entry is None:
+        raise ValueError(f"Unknown OAuth state: {state}")
+
+    _, event, result_holder = entry
+
+    try:
+        await asyncio.wait_for(event.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        _pending_flows.pop(state, None)
+        raise TimeoutError(
+            "Timed out waiting for Google OAuth callback. "
+            "Please try connecting again."
+        )
+
+    _pending_flows.pop(state, None)
+    return result_holder["token_data"]
 
 
 # ---------------------------------------------------------------------------
