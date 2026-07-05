@@ -32,6 +32,7 @@ export function useConversations() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [streamPhase, setStreamPhase] = useState("");
+  const [activeTool, setActiveTool] = useState("");
   const [error, setError] = useState("");
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -110,6 +111,7 @@ export function useConversations() {
           if (cancelled) break;
           if (event.type === "status") {
             setStreamPhase(event.phase);
+            setActiveTool(event.phase === "tool_use" && event.tool ? event.tool : "");
           } else if (event.type === "delta") {
             accumulated += event.text;
             const snap = accumulated;
@@ -180,6 +182,7 @@ export function useConversations() {
       } finally {
         setStreaming(false);
         setStreamPhase("");
+        setActiveTool("");
         abortRef.current = null;
       }
     },
@@ -230,6 +233,7 @@ export function useConversations() {
     loadingMsgs,
     streaming,
     streamPhase,
+    activeTool,
     error,
     setError,
     loadConversations,

@@ -108,7 +108,6 @@ _LIST_EMAIL_METADATA_SCHEMA = {
                         "- in:sent to:alice@example.com\n"
                         "Leave empty to retrieve the most recent emails."
                     ),
-                    "default": ""
                 },
                 "max_results": {
                     "type": "integer",

@@ -236,6 +236,9 @@ async def stream_response(
                 tool_name = tool_call.name
                 arguments = json.loads(tool_call.arguments)
 
+                # Notify the client which tool is being invoked
+                yield {"type": "status", "phase": "tool_use", "tool": tool_name}
+
                 logger.info(
                     "stream_response | tool=%s | user=%s | starting", tool_name, user.id)
 

@@ -121,6 +121,36 @@ DRAFT_INTERVAL_SECS = 0.5   # minimum seconds between draft updates
 MIN_NEW_CHARS = 8           # skip update if fewer new chars than this
 
 
+# ── Tool display names ───────────────────────────────────────────────────────
+# Maps internal tool names to user-friendly labels shown in Telegram drafts.
+
+_TOOL_LABELS: dict[str, str] = {
+    # Tasks
+    "create_task":                      "📝 Creating task…",
+    "search_tasks":                     "🔍 Searching tasks…",
+    "update_task":                      "✏️ Updating task…",
+    "get_all_tasks":                    "📋 Fetching tasks…",
+    # Memory
+    "save_memory":                      "💾 Saving memory…",
+    "search_memories":                  "🔍 Searching memories…",
+    # Todoist
+    "fetch_tasks":                      "📥 Fetching Todoist tasks…",
+    # Google
+    "list_email_metadata":              "📧 Checking emails…",
+    "get_email_by_id":                  "📧 Reading email…",
+    "create_event_in_google_calendar":  "📅 Creating calendar event…",
+}
+
+
+def _tool_display_name(tool_name: str) -> str:
+    """Return a user-friendly display label for a tool, or a generic fallback."""
+    if tool_name in _TOOL_LABELS:
+        return _TOOL_LABELS[tool_name]
+    # Generic fallback: "⚙️ Using some_tool…"
+    pretty = tool_name.replace("_", " ")
+    return f"⚙️ Using {pretty}…"
+
+
 # ── Bot class ─────────────────────────────────────────────────────────────────
 
 class TelegramBot:
@@ -265,7 +295,25 @@ class TelegramBot:
             ):
                 event_type = event["type"]
 
-                if event_type == "delta":
+                if event_type == "status":
+                    phase = event.get("phase", "")
+                    tool = event.get("tool", "")
+                    if phase == "tool_use" and tool:
+                        # Show the user which tool Nexus is using
+                        label = _tool_display_name(tool)
+                        await bot.send_message_draft(
+                            chat_id=chat_id,
+                            draft_id=draft_id,
+                            text=f"{label}",
+                        )
+                    elif phase == "thinking":
+                        await bot.send_message_draft(
+                            chat_id=chat_id,
+                            draft_id=draft_id,
+                            text="🧠 Thinking…",
+                        )
+
+                elif event_type == "delta":
                     accumulated += event["text"]
                     now = time.monotonic()
                     new_chars = len(accumulated) - last_draft_len

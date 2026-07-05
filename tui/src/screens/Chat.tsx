@@ -54,6 +54,7 @@ export function Chat({ onNavigate }: ChatProps) {
     loadingMsgs,
     streaming,
     streamPhase,
+    activeTool,
     error,
     setError,
     sendMessage,
@@ -290,6 +291,7 @@ export function Chat({ onNavigate }: ChatProps) {
           <MessageList
             messages={messages}
             streamPhase={streamPhase}
+            activeTool={activeTool}
             scrollOffset={scrollOffset}
             height={MSG_AREA_HEIGHT}
             width={MSG_WIDTH}
@@ -334,6 +336,7 @@ export function Chat({ onNavigate }: ChatProps) {
             onSubmit={handleSubmit}
             streaming={streaming}
             streamPhase={streamPhase}
+            activeTool={activeTool}
             showPalette={showPalette}
             deleteConfirm={deleteConfirm}
             llm={llm}

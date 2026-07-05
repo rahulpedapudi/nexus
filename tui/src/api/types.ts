@@ -141,7 +141,7 @@ export interface MessageCreate {
 
 // SSE stream events from POST /chat/stream
 export type StreamEvent =
-  | { type: "status"; phase: "thinking" | "streaming" | "done" }
+  | { type: "status"; phase: "thinking" | "streaming" | "done" | "tool_use"; tool?: string }
   | { type: "delta"; text: string }
   | { type: "done"; message_id: string; conv_id: string; full_text: string }
   | { type: "error"; detail: string; code?: string };

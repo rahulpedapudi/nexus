@@ -14,6 +14,7 @@ interface ChatInputProps {
   onSubmit: (val: string) => void;
   streaming: boolean;
   streamPhase: string;
+  activeTool: string;
   showPalette: boolean;
   deleteConfirm: boolean;
   llm?: LLMInfo;
@@ -26,6 +27,7 @@ export function ChatInput({
   onSubmit,
   streaming,
   streamPhase,
+  activeTool,
   showPalette,
   deleteConfirm,
   llm,
@@ -52,7 +54,11 @@ export function ChatInput({
               <Spinner type="dots" />
             </Text>
             <Text color="gray">
-              {streamPhase === "thinking" ? "Thinking…" : "Streaming…"}
+              {activeTool
+                ? `Using ${activeTool}…`
+                : streamPhase === "thinking"
+                  ? "Thinking…"
+                  : "Streaming…"}
             </Text>
             <Text color="gray" dimColor>
               Ctrl+C to cancel

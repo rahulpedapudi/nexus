@@ -34,6 +34,7 @@ function wrapText(text: string, maxWidth: number): string[] {
 interface MessageListProps {
   messages: LocalMessage[];
   streamPhase: string;
+  activeTool: string;
   scrollOffset: number;
   height: number;
   width: number;
@@ -46,6 +47,7 @@ interface MessageListProps {
 export function MessageList({
   messages,
   streamPhase,
+  activeTool,
   scrollOffset,
   height,
   width,
@@ -76,7 +78,7 @@ export function MessageList({
     const label = isUser
       ? "You"
       : msg.streaming
-        ? `◌ Nexus [${streamPhase}]`
+        ? `◌ Nexus [${activeTool ? `using ${activeTool}` : streamPhase}]`
         : "◉ Nexus";
     allLines.push({
       color: isUser ? "cyan" : "green",

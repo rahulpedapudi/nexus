@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Box, Text } from "ink";
 import TextInput from "ink-text-input";
+import os from "os";
+import path from "path";
 
 import { SpinnerRow } from "../../components/SpinnerRow.js";
 import { useGoogleOAuth } from "../../hooks/useGoogleOAuth.js";
@@ -25,13 +27,22 @@ export function GoogleOAuthScreen({ onDone }: GoogleOAuthScreenProps) {
 
   const handleFilePathSubmit = () => {
     if (!credentialsFilePath) return;
-    if (!credentialsFilePath.endsWith(".json")) {
+
+    // Normalize the file path: trim whitespace, strip surrounding quotes, expand ~
+    let parsed = credentialsFilePath.trim();
+    parsed = parsed.replace(/^["']+|["']+$/g, "");
+    if (parsed.startsWith("~")) {
+      parsed = path.join(os.homedir(), parsed.slice(1));
+    }
+    parsed = path.resolve(parsed);
+
+    if (!parsed.endsWith(".json")) {
       setFileError("Please provide a valid JSON file path.");
       return;
     }
     setFileError("");
     try {
-      handleGoogleCreds(credentialsFilePath);
+      handleGoogleCreds(parsed);
       startGoogleOAuth();
     } catch (err: any) {
       setFileError(err.message);

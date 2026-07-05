@@ -257,7 +257,10 @@ async def stream_events(
         event_type = event["type"]
 
         if event_type == "status":
-            yield {"type": "status", "phase": event["phase"]}
+            status_event: dict = {"type": "status", "phase": event["phase"]}
+            if "tool" in event:
+                status_event["tool"] = event["tool"]
+            yield status_event
 
         elif event_type == "delta":
             accumulated.append(event["text"])

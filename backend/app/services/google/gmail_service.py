@@ -22,7 +22,7 @@ def _get_email_body(payload):
     return None
 
 
-def list_email_metadata(service, query: str = "", max_results: int = 10):
+def list_email_metadata(service, query: str = "is:unread", max_results: int = 10):
     """
     Gets the top N email metadata.
 
