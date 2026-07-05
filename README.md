@@ -19,8 +19,18 @@ You own the data. You control the model. No cloud required.
 
 ## Quick install
 
+### macOS / Linux
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rahulpedapudi/nexus/main/install.sh | bash
+```
+
+### Windows
+
+Open an **elevated (Admin) PowerShell** prompt and run:
+
+```powershell
+irm https://raw.githubusercontent.com/rahulpedapudi/nexus/main/install.ps1 | iex
 ```
 
 Requires: **Git**, **Docker** (installed automatically if missing), **Node.js 20+** (installed automatically if missing).
@@ -38,13 +48,11 @@ Run `nexus` to open the terminal UI
 
 ## How it works
 
-```
-~/.nexus/
+```text
+~/.nexus/  (or %USERPROFILE%\.nexus\ on Windows)
   .env              ← your secrets and config (generated on install)
   context/
     SOUL.md         ← Nexus's personality and tone
-    PERSONA.md      ← who you are (updated by Nexus as it learns)
-    SKILLS.md       ← what Nexus can do
     DIRECTIVES.md   ← hard rules and constraints
   data/
     pgdata/         ← Postgres data (pgvector)
@@ -57,82 +65,14 @@ The `context/` files are plain markdown. Edit them directly to customize how Nex
 
 ## Requirements
 
-| Requirement                   | Notes                          |
-| ----------------------------- | ------------------------------ |
-| Docker + Compose plugin       | Auto-installed by `install.sh` |
-| Node.js 20+                   | Auto-installed by `install.sh` |
-| A Groq or OpenRouter API key  | For the LLM                    |
-| A Google API key              | For embeddings (Gemini)        |
-| Telegram or Discord bot token | Optional — for bot access      |
+| Requirement                   | Notes                            |
+| ----------------------------- | -------------------------------- |
+| Docker + Compose plugin       | Auto-installed by install script |
+| Node.js 20+                   | Auto-installed by install script |
+| A Groq or OpenRouter API key  | For the LLM                      |
+| A Google API key              | For embeddings (Gemini)          |
+| Telegram or Discord bot token | Optional — for bot access        |
 
----
-
-## Configuration
-
-All config lives at `~/.nexus/.env`. The install script generates secrets automatically. Fill in your API keys after install:
-
-```dotenv
-# LLM — pick one
-LLM_PROVIDER=groq
-GROQ_API_KEY=your_key_here
-GROQ_DEFAULT_MODEL=llama-3.3-70b-versatile
-
-# or
-LLM_PROVIDER=openrouter
-OPENROUTER_API_KEY=your_key_here
-
-# Embeddings
-GOOGLE_API_KEY=your_key_here
-
-# Bots (leave blank to disable)
-TELEGRAM_TOKEN=
-DISCORD_TOKEN=
-```
-
-After editing `.env`, restart with:
-
-```bash
-nexus.sh restart
-```
-
----
-
-## Terminal UI
-
-Running `nexus` anywhere in your terminal opens the TUI — a full terminal interface for configuring and managing your instance without touching a browser.
-
-```
-┌─────────────────────────────────┐
-│  N E X U S                      │
-│                                 │
-│  > Setup wizard                 │
-│    Dashboard                    │
-│    Integrations                 │
-│    Config editor                │
-│                                 │
-│  ↑↓ navigate  enter select  q quit │
-└─────────────────────────────────┘
-```
-
-On first run, `nexus` launches the setup wizard automatically.
-
----
-
-## Management commands
-
-```bash
-nexus.sh start      # start all services
-nexus.sh stop       # stop all services
-nexus.sh restart    # restart the API
-nexus.sh update     # pull latest + rebuild + migrate
-nexus.sh logs       # tail API logs
-nexus.sh logs db    # tail database logs
-nexus.sh status     # show running containers
-nexus.sh shell      # bash shell inside the API container
-nexus.sh db         # psql shell
-nexus.sh backup     # dump Postgres to ~/.nexus/data/
-nexus.sh open       # open the web UI in your browser
-```
 
 ---
 
@@ -146,19 +86,13 @@ Integrations are configured through the TUI (`nexus` → Integrations) or via th
 - **Telegram** — chat with Nexus via bot
 - **Discord** — chat with Nexus via bot
 
-Each integration stores credentials in the database (encrypted), not in `.env`.
-
 ---
 
 ## Customizing Nexus
 
-Edit the files in `~/.nexus/context/` directly:
+Edit the files in `~/.nexus/context/` (on Windows: `%USERPROFILE%\.nexus\context\`) directly:
 
 **`SOUL.md`** — Nexus's identity. How it speaks, what it values, its tone.
-
-**`PERSONA.md`** — Your profile. Nexus updates this as it learns about you. You can also write it manually.
-
-**`SKILLS.md`** — Descriptions of what Nexus can do and when to use each tool.
 
 **`DIRECTIVES.md`** — Hard rules. Things Nexus must or must never do. Takes precedence over everything else.
 
@@ -166,26 +100,29 @@ Changes take effect immediately — no restart needed.
 
 ---
 
-## Updating
-
-```bash
-nexus.sh update
-```
-
-This pulls the latest code, rebuilds containers, rebuilds the TUI, and runs any new database migrations.
-
----
-
 ## Uninstall
+
+### macOS / Linux
 
 ```bash
 # stop and remove containers
 nexus.sh stop
-docker compose -f ~/.nexus/repo/docker-compose.yml down --volumes
+docker compose -f ~/.nexus/repo/compose.yaml down --volumes
 
 # remove everything
 rm -rf ~/.nexus
 sudo rm /usr/local/bin/nexus
+```
+
+### Windows
+
+```powershell
+# stop and remove containers
+nexus stop
+docker compose -f "$env:USERPROFILE\.nexus\repo\compose.yaml" down --volumes
+
+# remove everything
+Remove-Item -Recurse -Force "$env:USERPROFILE\.nexus"
 ```
 
 ---
