@@ -2,7 +2,11 @@ import requests
 from app.core.config import settings
 from app.core.credentials import creds_store
 
-TODOIST_API_TOKEN = creds_store.get("todoist").get("token")
+try:
+    TODOIST_API_TOKEN = creds_store.get("todoist")["token"]
+except Exception:
+    TODOIST_API_TOKEN = ""
+
 TODOIST_BASE_URL = settings.TODOIST_URL
 
 headers = {
