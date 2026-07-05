@@ -69,27 +69,37 @@ function Install-WithWinget {
     }
 }
 
-# Docker Desktop — winget can install it but it needs a full reboot + manual start before docker.exe is usable
+# Docker Desktop -- winget can install it but it needs a full reboot + manual start before docker.exe is usable
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Warn "Docker not found. Attempting to install Docker Desktop..."
     Install-WithWinget "Docker.DockerDesktop" "Docker Desktop"
     Write-Host ""
     Write-Host "  Docker Desktop was installed." -ForegroundColor Yellow
-    Write-Host "  ► Please REBOOT your machine, then START Docker Desktop," -ForegroundColor Yellow
+    Write-Host "  >> Please REBOOT your machine, then START Docker Desktop," -ForegroundColor Yellow
     Write-Host "    and finally re-run this installer." -ForegroundColor Yellow
     Write-Host ""
     exit 0
 }
 
+# Temporarily allow stderr from native commands (Docker emits harmless warnings there)
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
+
 # Verify Compose plugin (ships with Docker Desktop)
-docker compose version 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { Write-Err "Docker Compose plugin missing. Update Docker Desktop to a recent version." }
+docker compose version 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    $ErrorActionPreference = $prevEAP
+    Write-Err "Docker Compose plugin missing. Update Docker Desktop to a recent version."
+}
 
 # Make sure Docker daemon is actually running
-docker info 2>&1 | Out-Null
+docker info 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
+    $ErrorActionPreference = $prevEAP
     Write-Err "Docker is installed but not running.`n  Start Docker Desktop and re-run this script."
 }
+
+$ErrorActionPreference = $prevEAP
 
 # Node.js
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -99,7 +109,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
                 [System.Environment]::GetEnvironmentVariable("PATH", "User")
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        Write-Warn "node not on PATH yet — you may need to restart your terminal after install."
+        Write-Warn "node not on PATH yet -- you may need to restart your terminal after install."
     } else {
         Write-Info "Node.js installed: $(node --version)"
     }
@@ -149,7 +159,7 @@ if (-not (Test-Path $CredentialsFile)) {
     if (Test-Path $credSrc) { Copy-Item $credSrc $CredentialsFile }
     else { '{}' | Set-Content $CredentialsFile -Encoding UTF8 }
 } else {
-    Write-Info "credentials.json already exists — skipping."
+    Write-Info "credentials.json already exists -- skipping."
 }
 
 if (-not (Test-Path $EnvFile)) {
@@ -173,9 +183,9 @@ if (-not (Test-Path $EnvFile)) {
     Set-EnvFileLine $EnvFile "FERNET_KEY"        $FernetKey
     Set-EnvFileLine $EnvFile "DATABASE_URL"      "postgresql://nexus:${PostgresPassword}@db:5432/nexus"
 
-    Write-Warn "LLM/bot keys left blank — fill them in at: $CredentialsFile"
+    Write-Warn "LLM/bot keys left blank -- fill them in at: $CredentialsFile"
 } else {
-    Write-Info ".env already exists — skipping."
+    Write-Info ".env already exists -- skipping."
 }
 
 # ── 4. Seed context files ─────────────────────────────────────
@@ -188,10 +198,10 @@ foreach ($f in @("SOUL.md", "DIRECTIVES.md")) {
             Write-Info "Created context/$f"
         } else {
             New-Item -ItemType File -Path $dest | Out-Null
-            Write-Warn "context/$f not found in repo — created empty file"
+            Write-Warn "context/$f not found in repo -- created empty file"
         }
     } else {
-        Write-Info "context/$f already exists — skipping."
+        Write-Info "context/$f already exists -- skipping."
     }
 }
 
@@ -239,7 +249,7 @@ for ($i = 1; $i -le 30; $i++) {
     Start-Sleep -Seconds 2
 }
 Write-Host ""
-if (-not $ready) { Write-Warn "API health check timed out — it may still be starting up." }
+if (-not $ready) { Write-Warn "API health check timed out -- it may still be starting up." }
 
 # ── 8. Build TUI + install nexus command ─────────────────────
 Write-Section "Installing nexus command..."
@@ -279,11 +289,11 @@ Write-Info "nexus command installed at $LauncherPath"
 
 # ── 9. Done ───────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  ✓ Nexus is ready." -ForegroundColor Green
+Write-Host "  [OK] Nexus is ready." -ForegroundColor Green
 Write-Host ""
-Write-Host "  API      → http://localhost:$ApiPort"
-Write-Host "  Config   → $EnvFile"
-Write-Host "  Context  → $(Join-Path $NexusHome 'context\')"
+Write-Host "  API      -> http://localhost:$ApiPort"
+Write-Host "  Config   -> $EnvFile"
+Write-Host "  Context  -> $(Join-Path $NexusHome 'context\')"
 Write-Host ""
 Write-Host "  Run 'nexus' to open the terminal UI"
 if ($userPath -notlike "*$BinDir*") {
