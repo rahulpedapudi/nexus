@@ -12,22 +12,99 @@ warn()    { echo -e "${YELLOW}[nexus]${NC} $1"; }
 error()   { echo -e "${RED}[nexus]${NC} $1"; exit 1; }
 section() { echo -e "\n${BOLD}$1${NC}"; }
 
+# ── 0. detect OS ──────────────────────────────────────────────
+OS="$(uname -s)"
+case "$OS" in
+  Linux*)  PLATFORM="linux"  ;;
+  Darwin*) PLATFORM="macos"  ;;
+  *)       error "Unsupported OS: $OS. This installer supports Linux and macOS." ;;
+esac
+
+info "Detected platform: $PLATFORM"
+
+# Cross-platform sed in-place: BSD sed (macOS) requires '' after -i
+sedi() {
+  if [ "$PLATFORM" = "macos" ]; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
+
 # ── 1. system deps ────────────────────────────────────────────
 section "Checking dependencies..."
 
+# -- Homebrew (macOS only, needed for installing deps) --
+if [ "$PLATFORM" = "macos" ]; then
+  if ! command -v brew &>/dev/null; then
+    info "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Add brew to PATH for Apple Silicon & Intel Macs
+    if [ -f /opt/homebrew/bin/brew ]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -f /usr/local/bin/brew ]; then
+      eval "$(/usr/local/bin/brew shellenv)"
+    fi
+  fi
+fi
+
+# -- Docker --
 if ! command -v docker &>/dev/null; then
-  info "Installing Docker..."
-  curl -fsSL https://get.docker.com | sh
-  sudo usermod -aG docker "$USER"
-  warn "Added $USER to docker group. You may need to re-login if docker fails below."
+  if [ "$PLATFORM" = "macos" ]; then
+    info "Installing Docker Desktop via Homebrew..."
+    brew install --cask docker
+    warn "Docker Desktop installed. Please launch it from Applications before continuing."
+    warn "Waiting for Docker to start..."
+    # Wait up to 60s for Docker daemon to be ready
+    for i in $(seq 1 30); do
+      if docker info &>/dev/null; then
+        break
+      fi
+      if [ "$i" -eq 30 ]; then
+        error "Docker daemon didn't start in time. Please open Docker Desktop and re-run this script."
+      fi
+      sleep 2
+    done
+  else
+    info "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+    sudo usermod -aG docker "$USER"
+    warn "Added $USER to docker group. You may need to re-login if docker fails below."
+  fi
 fi
 
 docker compose version &>/dev/null || error "Docker Compose plugin missing."
 
+# -- Git --
+if ! command -v git &>/dev/null; then
+  if [ "$PLATFORM" = "macos" ]; then
+    info "Installing Git via Homebrew..."
+    brew install git
+  else
+    info "Installing Git..."
+    sudo apt-get update && sudo apt-get install -y git
+  fi
+fi
+
+# -- Node.js --
 if ! command -v node &>/dev/null; then
-  info "Installing Node.js..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt-get install -y nodejs
+  if [ "$PLATFORM" = "macos" ]; then
+    info "Installing Node.js via Homebrew..."
+    brew install node
+  else
+    info "Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  fi
+fi
+
+# -- OpenSSL (usually present, but just in case) --
+if ! command -v openssl &>/dev/null; then
+  if [ "$PLATFORM" = "macos" ]; then
+    brew install openssl
+  else
+    sudo apt-get install -y openssl
+  fi
 fi
 
 # ── 2. clone / update ─────────────────────────────────────────
@@ -71,10 +148,10 @@ if [ ! -f "$ENV_FILE" ]; then
     "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" \
     2>/dev/null || openssl rand -base64 32)
 
-  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|"             "$ENV_FILE"
-  sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" "$ENV_FILE"
-  sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|"             "$ENV_FILE"
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://nexus:${POSTGRES_PASSWORD}@db:5432/nexus|" "$ENV_FILE"
+  sedi "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|"             "$ENV_FILE"
+  sedi "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" "$ENV_FILE"
+  sedi "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|"             "$ENV_FILE"
+  sedi "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://nexus:${POSTGRES_PASSWORD}@db:5432/nexus|" "$ENV_FILE"
 
 
 else
