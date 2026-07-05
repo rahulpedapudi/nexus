@@ -2,6 +2,8 @@ import os
 import socket
 import logging
 from pathlib import Path
+
+from app.core.paths import get_nexus_home
 from datetime import datetime, UTC
 from urllib.parse import urlparse
 from wsgiref import simple_server
@@ -31,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Allow HTTP for local development (remove in production)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-CLIENT_SECRETS_FILE = Path.home() / ".nexus" / "google-credentials.json"
+CLIENT_SECRETS_FILE = get_nexus_home() / "google-credentials.json"
 
 SCOPES = [
     "openid",

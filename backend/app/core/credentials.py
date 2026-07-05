@@ -2,6 +2,8 @@ import json
 import logging
 from pathlib import Path
 
+from app.core.paths import get_nexus_home
+
 logger = logging.getLogger(__name__)
 
 
@@ -11,8 +13,9 @@ class CredentialStore:
     """
 
     def __init__(self) -> None:
-        # Path to the credentials file, located in home directory /home/user/.nexus/credentials.json
-        self.path = Path.home() / ".nexus"
+        # Path to the credentials file — resolved via get_nexus_home() so that
+        # $NEXUS_HOME is honoured and Windows / macOS paths work correctly.
+        self.path = get_nexus_home()
         self.file_path = self.path / "credentials.json"
 
     def load_credentials(self) -> dict:

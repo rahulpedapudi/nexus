@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     # auth settings
     SECRET_KEY: str = JWT_SECRET
 
-    TODOIST_URL: str = "https://api.todoist.com/rest/v2"
-    
+    TODOIST_URL: str = "https://api.todoist.com/api/v1"
+
     TODOIST_TOKEN: str = ""
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7   # 7 days

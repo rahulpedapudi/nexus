@@ -8,7 +8,7 @@ from app.core.credentials import creds_store
 from app.bot.telegram_handler import start_telegram, stop_telegram
 from app.bot.discord_handler import start_discord, stop_discord
 from app.core.logging import setup_logging
-from app.api.routes import auth, chat, conversations, keys, memory, task, integrations, settings
+from app.api.routes import auth, chat, conversations, keys, memory, task, integrations, settings, todoist
 
 from app.api.routes.google import calendar as google_calendar, gmail as google_gmail
 
@@ -16,12 +16,15 @@ from app.api.routes.google import calendar as google_calendar, gmail as google_g
 # Register tools
 from app.agent.tools import tasks, memories
 from app.agent.tools.integrations.google import calendar, gmail
+from app.agent.tools.integrations import todoist as todoist_tools
 
 tasks.register()
 memories.register()
 calendar.register()
 gmail.register()
-    
+todoist_tools.register()
+
+
 setup_logging()
 
 
@@ -118,6 +121,10 @@ app.include_router(
 
 app.include_router(
     router=google_gmail.router
+)
+
+app.include_router(
+    router=todoist.router
 )
 
 

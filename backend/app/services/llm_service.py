@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 from pathlib import Path
+
+from app.core.paths import get_nexus_home
 import time
 from typing import AsyncGenerator
 from datetime import datetime
@@ -29,7 +31,7 @@ def get_provider():
 
 def build_system_prompt():
     try:
-        context_dir = Path.home() / ".nexus" / "context"
+        context_dir = get_nexus_home() / "context"
 
         files = ["SOUL.md", "DIRECTIVES.md"]
 
