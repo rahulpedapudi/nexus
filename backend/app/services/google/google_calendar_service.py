@@ -1,6 +1,40 @@
 from datetime import datetime, timedelta, timezone
 
 
+def fetch_today_events(service):
+    """
+    Return all Google Calendar events for the rest of today (UTC).
+
+    Args:
+        service: Authorised Google Calendar API v3 resource.
+
+    Returns:
+        list[dict]: Events with summary, start, end, and description.
+    """
+    now = datetime.now(timezone.utc)
+    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+
+    result = service.events().list(
+        calendarId="primary",
+        timeMin=now.isoformat(),
+        timeMax=end_of_day.isoformat(),
+        singleEvents=True,
+        orderBy="startTime",
+    ).execute()
+
+    events = []
+    for event in result.get("items", []):
+        start = event.get("start", {})
+        end = event.get("end", {})
+        events.append({
+            "summary": event.get("summary", "(No title)"),
+            "description": event.get("description", ""),
+            "start": start.get("dateTime", start.get("date", "")),
+            "end": end.get("dateTime", end.get("date", "")),
+        })
+    return events
+
+
 def fetch_events(service):
     now = datetime.now(timezone.utc).isoformat()
     events = service.events().list(

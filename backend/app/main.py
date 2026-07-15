@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,7 @@ from app.bot.telegram_handler import start_telegram, stop_telegram
 from app.bot.discord_handler import start_discord, stop_discord
 from app.core.logging import setup_logging
 from app.api.routes import auth, chat, conversations, keys, memory, task, integrations, settings, todoist
+from app.tasks.digest import digest_loop
 
 from app.api.routes.google import calendar as google_calendar, gmail as google_gmail
 
@@ -42,6 +44,7 @@ async def lifespan(app: FastAPI):
     enabled_gateways = creds_store.get("ENABLED_GATEWAYS")
 
     # start all the gateways that are enabled and has token, raise exception if token not found for any enabled gateway
+    _digest_task = None
     if enabled_gateways:
         for gateway in enabled_gateways:
             token = creds_store.get_gateway_token(gateway)
@@ -49,12 +52,27 @@ async def lifespan(app: FastAPI):
                 await gateway_manager.enable(gateway, token)
             else:
                 raise Exception(f"Token not found for gateway: {gateway}")
-        yield
-        # cleanup on shutdown
+
+    # Start the morning digest background loop.
+    # It grabs the bot instance lazily inside each iteration, so it is safe
+    # to start even before the Telegram bot finishes initialising.
+    _digest_task = asyncio.create_task(
+        digest_loop(),
+        name="morning_digest",
+    )
+
+    yield
+
+    # ── Shutdown ──────────────────────────────────────────────────────────────
+    if _digest_task is not None:
+        _digest_task.cancel()
+        try:
+            await _digest_task
+        except asyncio.CancelledError:
+            pass
+
+    if enabled_gateways:
         await gateway_manager.shutdown()
-    else:
-        # No gateways enabled
-        yield
 
 
 app = FastAPI(lifespan=lifespan)

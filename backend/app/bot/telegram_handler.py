@@ -178,6 +178,13 @@ class TelegramBot:
         await self.app.updater.stop()
         await self.app.stop()
 
+    async def send_message(self, chat_id: str, text: str) -> None:
+        """
+        Push a plain-text message to *chat_id* without an Update context.
+        Used by proactive features such as the morning digest.
+        """
+        await self.app.bot.send_message(chat_id=chat_id, text=text)
+
     def get_db(self):
         return SessionLocal()
 
@@ -385,3 +392,18 @@ async def stop_telegram():
     if _bot_instance is not None:
         await _bot_instance.stop_bot()
         _bot_instance = None
+
+
+def get_bot_instance() -> TelegramBot | None:
+    """Return the running TelegramBot singleton, or None if not started."""
+    return _bot_instance
+
+
+async def send_message(chat_id: str, text: str) -> None:
+    """
+    Module-level helper for proactive pushes (e.g. morning digest).
+    Raises RuntimeError if the Telegram bot has not been started.
+    """
+    if _bot_instance is None:
+        raise RuntimeError("Telegram bot is not running")
+    await _bot_instance.send_message(chat_id, text)

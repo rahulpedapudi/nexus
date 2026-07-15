@@ -4,6 +4,8 @@ import logging
 import uuid
 from typing import Any
 
+from google.auth import exceptions as google_auth_exceptions
+
 from app.core.paths import get_nexus_home
 from datetime import datetime, UTC, timedelta
 
@@ -263,7 +265,21 @@ def _is_expired(token: OAuthToken) -> bool:
 def _refresh_and_persist(db: Session, token: OAuthToken, creds: Credentials) -> Credentials:
     """Refresh the credentials and write the new access token back to DB."""
     logger.info("Refreshing Google OAuth token for user_id=%s", token.user_id)
-    creds.refresh(GoogleRequest())
+    try:
+        creds.refresh(GoogleRequest())
+    except google_auth_exceptions.RefreshError as exc:
+        # invalid_grant means the token was revoked or expired beyond recovery.
+        # Delete the stale token so the user is prompted to re-authenticate.
+        logger.warning(
+            "Google OAuth refresh failed for user_id=%s (token revoked/expired): %s",
+            token.user_id, exc,
+        )
+        db.delete(token)
+        db.commit()
+        raise ValueError(
+            "Your Google account access has been revoked or expired. "
+            "Please reconnect Google via the Integrations menu."
+        ) from exc
 
     token.access_token = creds.token
     if creds.expiry:
