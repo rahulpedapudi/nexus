@@ -55,6 +55,13 @@ const INTEGRATION_CATALOGUE: Integration[] = [
     connected: false,
     fields: [],
   },
+  {
+    name: "todoist",
+    category: "Integrations",
+    displayName: "Todoist",
+    connected: false,
+    fields: [],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -250,6 +257,8 @@ export function Integrations({ onBack }: IntegrationsProps) {
                 setSubScreen("gateway");
               } else if (selected.name === "google") {
                 setSubScreen("google-oauth");
+              } else {
+                setSubScreen("connect");
               }
             }}
             onDisconnect={() => setSubScreen("disconnect")}

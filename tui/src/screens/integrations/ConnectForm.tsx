@@ -3,7 +3,7 @@ import { Box, Text } from "ink";
 import TextInput from "ink-text-input";
 
 import { SpinnerRow } from "../../components/SpinnerRow.js";
-import { readConfig } from "../../config.js";
+import { readCredentials, writeCredentials } from "../../config.js";
 import type { Integration } from "../../api/types.js";
 
 interface ConnectFormProps {
@@ -20,30 +20,23 @@ export function ConnectForm({ integration, onDone, onBack }: ConnectFormProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
+  const [token, setToken] = useState("");
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     setSaveError("");
     try {
-      const cfg = readConfig();
-      const firstValue = Object.values(fieldValues)[0] ?? "";
-      const res = await fetch(
-        `${cfg.baseUrl ?? "http://localhost:8421"}/keys/create`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cfg.token ?? ""}`,
-          },
-          body: JSON.stringify({ provider: integration.name, key: firstValue }),
-        },
-      );
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(
-          (body as { detail?: string }).detail ?? `HTTP ${res.status}`,
-        );
-      }
+      const existing = readCredentials();
+      const alreadyEnabled = existing.ENABLED_INTEGRATIONS ?? [];
+      const enabledIntegrations = alreadyEnabled.includes(integration.name)
+        ? alreadyEnabled
+        : [...alreadyEnabled, integration.name];
+
+      writeCredentials({
+        [integration.name]: { token },
+        ENABLED_INTEGRATIONS: enabledIntegrations,
+      });
+
       setSaveSuccess(`✓  ${integration.displayName} connected!`);
       setTimeout(() => onDone(integration), 1200);
     } catch (err) {
@@ -51,7 +44,7 @@ export function ConnectForm({ integration, onDone, onBack }: ConnectFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [integration, fieldValues, onDone]);
+  }, [integration, onDone, token]);
 
   const handleFieldSubmit = useCallback(() => {
     if (focusedField < integration.fields.length - 1) {
@@ -66,9 +59,15 @@ export function ConnectForm({ integration, onDone, onBack }: ConnectFormProps) {
       <Text color="white" bold>
         Connect: {integration.displayName}
       </Text>
-      <Text color="gray" dimColor>
-        Enter the required credentials:
-      </Text>
+      <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+        <TextInput
+          focus={true}
+          value={token}
+          onChange={setToken}
+          onSubmit={handleSave}
+          placeholder="Enter your Personal API Key"
+        />
+      </Box>
 
       {integration.fields.map((field, idx) => (
         <Box key={field.key} flexDirection="column" gap={0}>

@@ -28,6 +28,7 @@ export interface NexusCredentials {
 
   telegram?: object;
   discord?: object;
+  todoist?: object;
 }
 
 /**
