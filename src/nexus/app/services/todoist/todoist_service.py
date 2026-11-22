@@ -4,7 +4,7 @@ from app.core.credentials import creds_store
 
 # Refactor this
 try:
-    TODOIST_API_TOKEN = "b23b79b0d6a512853d36333d0df86aa5658f4793"
+    TODOIST_API_TOKEN = "KEY_HERE"
 except Exception:
     TODOIST_API_TOKEN = ""
 
