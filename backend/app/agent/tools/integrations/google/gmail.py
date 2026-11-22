@@ -1,23 +1,22 @@
-from app.models.user import User
+from app.agent.tools.integrations.google.auth import get_credentials
+from app.agent.tools.registry import registry
+from app.services.google.gmail_service import get_email_by_id, list_email_metadata
 from googleapiclient.discovery import build
 from sqlalchemy.orm import Session
-from app.agent.tools.integrations.google.auth import get_credentials
-from app.services.google.gmail_service import list_email_metadata, get_email_by_id
-from app.agent.tools.registry import registry
 
 
-def get_gmail_service(db: Session, user_id):
-    creds = get_credentials(db, user_id)
+def get_gmail_service(db: Session):
+    creds = get_credentials(db)
     return build("gmail", "v1", credentials=creds)
 
 
-def tool_get_email_by_id(db: Session, user: User, id: str):
-    service = get_gmail_service(db, user.id)
+def tool_get_email_by_id(db: Session, id: str):
+    service = get_gmail_service(db)
     return get_email_by_id(service, id)
 
 
-def tool_list_email_metadata(db: Session, user: User, query: str, max_results: int = 10):
-    service = get_gmail_service(db, user.id)
+def tool_list_email_metadata(db: Session, query: str, max_results: int = 10):
+    service = get_gmail_service(db)
     return list_email_metadata(service, query, max_results)
 
 
@@ -44,12 +43,12 @@ _READ_EMAIL_BY_ID_SCHEMA = {
                     "description": (
                         "The Gmail message ID of the email to retrieve. "
                         "This ID should come from a previous email metadata search."
-                    )
+                    ),
                 }
             },
-            "required": ["id"]
-        }
-    }
+            "required": ["id"],
+        },
+    },
 }
 
 _LIST_EMAIL_METADATA_SCHEMA = {
@@ -114,12 +113,12 @@ _LIST_EMAIL_METADATA_SCHEMA = {
                     "description": "Maximum number of emails to return.",
                     "default": 10,
                     "minimum": 1,
-                    "maximum": 100
-                }
+                    "maximum": 100,
+                },
             },
-            "required": ["query", "max_results"]
-        }
-    }
+            "required": ["query", "max_results"],
+        },
+    },
 }
 
 

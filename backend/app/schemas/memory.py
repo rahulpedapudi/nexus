@@ -1,5 +1,7 @@
 from datetime import datetime
-from pydantic import BaseModel,UUID4,ConfigDict
+
+from pydantic import UUID4, BaseModel, ConfigDict
+
 
 class MemoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -1,6 +1,5 @@
 import json
 import logging
-from pathlib import Path
 
 from app.core.paths import get_nexus_home
 
@@ -19,7 +18,7 @@ class CredentialStore:
         self.file_path = self.path / "credentials.json"
 
     def load_credentials(self) -> dict:
-        """ 
+        """
         Loads the credentials from the file; (.nexus/credentials.json)
         Returns an empty dict if file doesn't exist
         """
@@ -40,7 +39,7 @@ class CredentialStore:
         try:
             self.file_path.write_text(json.dumps(data, indent=2))
         except Exception as e:
-            raise Exception(f"Failed to save credentials: {str(e)}")
+            raise Exception(f"Failed to save credentials: {e!s}")
 
     def get(self, key: str) -> str | list[str] | None:
         """
@@ -68,7 +67,7 @@ class CredentialStore:
             creds[key] = value
             self.save_credentials(creds)
         except Exception as e:
-            raise Exception(f"Failed to set credential: {str(e)}")
+            raise Exception(f"Failed to set credential: {e!s}")
 
     # Format:
     # "gateway_name": {
@@ -98,7 +97,7 @@ class CredentialStore:
             bool: True if the gateway is enabled, False otherwise
         """
         creds = self.load_credentials()
-        return (gateway in creds.get("enabled_gateways", []))
+        return gateway in creds.get("enabled_gateways", [])
 
 
 # singleton instance

@@ -1,5 +1,5 @@
 from app.agent.tools.registry import registry
-from app.services.todoist.todoist_service import fetch_tasks, create_task
+from app.services.todoist.todoist_service import create_task, fetch_tasks
 
 
 def tool_fetch_tasks(db, user, filter_string: str = "today"):
@@ -46,12 +46,12 @@ _FETCH_TASKS_SCHEMA = {
                         "Combine filters using '&' (AND), '|' (OR), and '!' (NOT). "
                         "If omitted, defaults to 'today'."
                     ),
-                    "default": "today"
+                    "default": "today",
                 }
             },
-            "required": []
-        }
-    }
+            "required": [],
+        },
+    },
 }
 
 _CREATE_TASK_SCHEMA = {
@@ -74,7 +74,6 @@ _CREATE_TASK_SCHEMA = {
                         "The Quick Add parser understands natural language and special syntax to set "
                         "due dates, times, recurring schedules, priorities, projects, labels, and assignees "
                         "within a single string.\n\n"
-
                         "Supported syntax:\n"
                         "- Plain text creates a task title.\n"
                         "- Natural language dates: today, tomorrow, tonight, next Monday, in 2 weeks.\n"
@@ -85,7 +84,6 @@ _CREATE_TASK_SCHEMA = {
                         "- Labels: @label.\n"
                         "- Multiple labels may be specified.\n"
                         "- Multiple attributes can be combined in a single string.\n\n"
-
                         "Examples:\n"
                         "- Buy groceries\n"
                         "- Buy groceries tomorrow\n"
@@ -102,21 +100,19 @@ _CREATE_TASK_SCHEMA = {
                         "- Review pull requests every weekday 9am #Work @coding p1\n"
                         "- Pay electricity bill every month p2 #Finance\n"
                         "- Plan vacation in December #Personal @travel\n\n"
-
                         "Examples combining multiple features:\n"
                         "- Finish Nexus integration tomorrow 6pm p1 #Work @backend\n"
                         "- Review design doc every Monday 10am p2 #Engineering @review\n"
                         "- Call mom every Sunday 7pm #Personal\n"
                         "- Renew SSL certificate every year @infrastructure p1\n\n"
-
                         "Prefer expressing all task details directly in the Quick Add text whenever possible."
-                    )
+                    ),
                 },
                 "note": {
                     "type": "string",
                     "description": (
                         "Optional note or additional information attached to the task."
-                    )
+                    ),
                 },
                 "reminder": {
                     "type": "string",
@@ -126,12 +122,12 @@ _CREATE_TASK_SCHEMA = {
                         "- 30 minutes before\n"
                         "- tomorrow 8am\n"
                         "- every weekday at 9am"
-                    )
-                }
+                    ),
+                },
             },
-            "required": ["text"]
-        }
-    }
+            "required": ["text"],
+        },
+    },
 }
 
 

@@ -1,10 +1,13 @@
 import json
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from app.core.config import settings
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError, ClientError, ServerError
-from app.core.config import settings
-from .base import LLMMessage, LLMResponse, BaseLLMProvider, LLMError, ToolCall
+
+from .base import BaseLLMProvider, LLMError, LLMMessage, LLMResponse, ToolCall
 
 
 def _classify(exc: APIError) -> LLMError:

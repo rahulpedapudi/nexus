@@ -2,16 +2,15 @@ import requests
 from app.core.config import settings
 from app.core.credentials import creds_store
 
+# Refactor this
 try:
-    TODOIST_API_TOKEN = creds_store.get("todoist")["token"]
+    TODOIST_API_TOKEN = "b23b79b0d6a512853d36333d0df86aa5658f4793"
 except Exception:
     TODOIST_API_TOKEN = ""
 
 TODOIST_BASE_URL = settings.TODOIST_URL
 
-headers = {
-    "Authorization": f"Bearer {TODOIST_API_TOKEN}"
-}
+headers = {"Authorization": f"Bearer {TODOIST_API_TOKEN}"}
 
 
 def fetch_tasks(db, user, filter_string: str = "today"):
@@ -48,17 +47,19 @@ def fetch_tasks(db, user, filter_string: str = "today"):
 
     tasks = []
     for task in data["results"]:
-        tasks.append({
-            "id": task["id"],
-            "content": task["content"],
-            "description": task["description"],
-            "due_date": task["due"]["date"],
-            "is_recurring": task["due"]["is_recurring"],
-            "checked": task["checked"],
-            "added_at": task["added_at"],
-            "completed_at": task["completed_at"],
-            "priority": task["priority"],
-        })
+        tasks.append(
+            {
+                "id": task["id"],
+                "content": task["content"],
+                "description": task["description"],
+                "due_date": task["due"]["date"],
+                "is_recurring": task["due"]["is_recurring"],
+                "checked": task["checked"],
+                "added_at": task["added_at"],
+                "completed_at": task["completed_at"],
+                "priority": task["priority"],
+            }
+        )
 
     return tasks
 

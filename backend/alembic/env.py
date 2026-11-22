@@ -1,34 +1,26 @@
 from logging.config import fileConfig
-import os
-from dotenv import load_dotenv
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from app.db.database import Base
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
-from app.models.user import User
+from app.db.database import Base
+
+
 from app.models.conversation import Conversation
+from app.models.keys import Keys
 from app.models.message import Message
 from app.models.linktoken import TelegramLinkToken
-from app.models.keys import Keys
 from app.models.memory import Memory
 from app.models.platform_tokens import PlatformToken
 from app.models.platform_identities import PlatformIdentity
 from app.models.tasks import Task
 from app.models.oauth_tokens import OAuthToken
 
-load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# Override sqlalchemy.url from environment if alembic.ini has it blank
-_db_url = os.getenv("DATABASE_URL")
-if _db_url:
-    config.set_main_option("sqlalchemy.url", _db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -85,9 +77,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

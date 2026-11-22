@@ -1,37 +1,37 @@
 import logging
 import time
-from uuid import UUID
 from datetime import datetime
-from typing import Optional
-from app.models.user import User
+
 from app.models.tasks import Task
-from sqlalchemy.orm import Session
 from app.schemas.task import TaskCreate, TaskUpdate
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 
-def get_tasks(db: Session, user: User) -> list[Task]:
+def get_tasks(db: Session) -> list[Task]:
     t0 = time.perf_counter()
-    result = db.query(Task).filter(Task.user_id == user.id).all()
-    logger.info("get_tasks | user=%s | count=%d | took=%.3fs",
-                user.id, len(result), time.perf_counter() - t0)
+    result = db.query(Task).all()
+    logger.info(
+        "get_tasks | count=%d | took=%.3fs",
+        len(result),
+        time.perf_counter() - t0,
+    )
     return result
 
 
 def search_tasks(
     db: Session,
-    user: User,
-    query: Optional[str] = None,
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    tag: Optional[str] = None,
-    done: Optional[bool] = None,
-    due_before: Optional[datetime] = None,
-    due_after: Optional[datetime] = None,
-    remind_before: Optional[datetime] = None,
-    remind_after: Optional[datetime] = None,
+    query: str | None = None,
+    status: str | None = None,
+    priority: str | None = None,
+    tag: str | None = None,
+    done: bool | None = None,
+    due_before: datetime | None = None,
+    due_after: datetime | None = None,
+    remind_before: datetime | None = None,
+    remind_after: datetime | None = None,
     limit: int = 20,
 ) -> list[Task]:
     """
@@ -51,12 +51,10 @@ def search_tasks(
     """
     limit = min(limit, 100)  # hard cap to prevent abuse
 
-    q = db.query(Task).filter(Task.user_id == user.id)
+    q = db.query(Task)
 
     if query:
-        q = q.filter(
-            Task.title.ilike(f"%{query}%") | Task.note.ilike(f"%{query}%")
-        )
+        q = q.filter(Task.title.ilike(f"%{query}%") | Task.note.ilike(f"%{query}%"))
     if status is not None:
         q = q.filter(Task.status == status)
     if priority is not None:
@@ -77,36 +75,46 @@ def search_tasks(
     t0 = time.perf_counter()
     result = q.order_by(Task.created_at.desc()).limit(limit).all()
     active_filters = {
-        k: v for k, v in dict(
-            query=query, status=status, priority=priority, tag=tag,
-            done=done, due_before=due_before, due_after=due_after,
-            remind_before=remind_before, remind_after=remind_after,
-        ).items() if v is not None
+        k: v
+        for k, v in dict(
+            query=query,
+            status=status,
+            priority=priority,
+            tag=tag,
+            done=done,
+            due_before=due_before,
+            due_after=due_after,
+            remind_before=remind_before,
+            remind_after=remind_after,
+        ).items()
+        if v is not None
     }
     logger.info(
-        "search_tasks | user=%s | filters=%s | count=%d | took=%.3fs",
-        user.id, active_filters, len(result), time.perf_counter() - t0,
+        "search_tasks | filters=%s | count=%d | took=%.3fs",
+        active_filters,
+        len(result),
+        time.perf_counter() - t0,
     )
     return result
 
 
-def create_task(db: Session, user: User, task_data: TaskCreate) -> Task:
+def create_task(db: Session, task_data: TaskCreate) -> Task:
     t0 = time.perf_counter()
-    task = Task(**task_data.model_dump(), user_id=user.id)
+    task = Task(**task_data.model_dump())
     db.add(task)
     db.commit()
     db.refresh(task)
-    logger.info("create_task | user=%s | task_id=%s | took=%.3fs",
-                user.id, task.id, time.perf_counter() - t0)
+    logger.info(
+        "create_task  | task_id=%s | took=%.3fs",
+        task.id,
+        time.perf_counter() - t0,
+    )
     return task
 
 
-def update_task(db: Session, user: User, task_id: str, task_data: TaskUpdate) -> Task:
+def update_task(db: Session, task_id: str, task_data: TaskUpdate) -> Task:
     t0 = time.perf_counter()
-    task = db.query(Task).filter(
-        Task.user_id == user.id,
-        Task.id == task_id
-    ).first()
+    task = db.query(Task).filter(Task.id == task_id).first()
 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -118,23 +126,27 @@ def update_task(db: Session, user: User, task_id: str, task_data: TaskUpdate) ->
 
     db.commit()
     db.refresh(task)
-    logger.info("update_task | user=%s | task_id=%s | fields=%s | took=%.3fs",
-                user.id, task_id, updated_fields, time.perf_counter() - t0)
+    logger.info(
+        "update_task | task_id=%s | fields=%s | took=%.3fs",
+        task_id,
+        updated_fields,
+        time.perf_counter() - t0,
+    )
     return task
 
 
-def delete_task(db: Session, user: User, task_id: str) -> Task:
+def delete_task(db: Session, task_id: str) -> Task:
     t0 = time.perf_counter()
-    task = db.query(Task).filter(
-        Task.user_id == user.id,
-        Task.id == task_id
-    ).first()
+    task = db.query(Task).filter(Task.id == task_id).first()
 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     db.delete(task)
     db.commit()
-    logger.info("delete_task | user=%s | task_id=%s | took=%.3fs",
-                user.id, task_id, time.perf_counter() - t0)
+    logger.info(
+        "delete_task | task_id=%s | took=%.3fs",
+        task_id,
+        time.perf_counter() - t0,
+    )
     return task

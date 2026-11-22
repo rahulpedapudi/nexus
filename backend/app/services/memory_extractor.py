@@ -1,13 +1,12 @@
-from app.services import memory_service
-from app.models.user import User
-from sqlalchemy.orm import Session
-from groq import AsyncGroq
 import json
 import logging
 import time
 
-from app.core.config import settings
 from app.agent.prompts import EXTRACTION_PROMPT
+from app.core.config import settings
+from app.services import memory_service
+from groq import AsyncGroq
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 async def extract_memories(
     user_msg: str,
     assistant_msg: str,
-    user: User,
     db: Session,
     api_key: str,
 ) -> list[dict]:
@@ -25,7 +23,7 @@ async def extract_memories(
     """
     client = AsyncGroq(api_key=api_key)
 
-    memories = memory_service.list_all_memories(db, user)
+    memories = memory_service.list_all_memories(db)
     past_memories_str = "\n".join([f"- {m.content}" for m in memories])
 
     t0 = time.perf_counter()
@@ -34,7 +32,8 @@ async def extract_memories(
         messages=[
             {
                 "role": "system",
-                "content": EXTRACTION_PROMPT + f"""
+                "content": EXTRACTION_PROMPT
+                + f"""
                     Already known about this user (do NOT re-extract these):
                     {past_memories_str if past_memories_str else "Nothing yet."}
                 """,
@@ -62,7 +61,12 @@ async def extract_memories(
                                     "content": {"type": "string"},
                                     "category": {
                                         "type": "string",
-                                        "enum": ["preference", "fact", "pattern", "habit"],
+                                        "enum": [
+                                            "preference",
+                                            "fact",
+                                            "pattern",
+                                            "habit",
+                                        ],
                                     },
                                 },
                                 "required": ["content", "category"],
@@ -79,7 +83,8 @@ async def extract_memories(
     parsed = json.loads(raw)
     memories = parsed.get("memories", [])
     logger.info(
-        "extract_memories | user=%s | extracted=%d | took=%.3fs",
-        user.id, len(memories), time.perf_counter() - t0,
+        "extract_memories | extracted=%d | took=%.3fs",
+        len(memories),
+        time.perf_counter() - t0,
     )
     return memories

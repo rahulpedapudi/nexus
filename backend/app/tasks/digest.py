@@ -16,18 +16,18 @@ import asyncio
 import logging
 from datetime import datetime
 
-from sqlalchemy.orm import Session, joinedload
-
 from app.db.database import SessionLocal
 from app.models.platform_identities import PlatformIdentity
+from sqlalchemy.orm import Session, joinedload
 
 logger = logging.getLogger(__name__)
 
 # ── Target hour (server local time) ──────────────────────────────────────────
-DIGEST_HOUR = 22   # 7:00 AM
+DIGEST_HOUR = 22  # 7:00 AM
 
 
 # ── Formatting helpers ────────────────────────────────────────────────────────
+
 
 def _fmt_time(iso: str) -> str:
     """Return HH:MM from an ISO-8601 datetime string, or the raw string."""
@@ -57,7 +57,7 @@ def _format_digest(events: list, tasks: list, emails: list) -> str:
     else:
         for ev in events:
             start = _fmt_time(ev.get("start", ""))
-            end = _fmt_time(ev.get("end",   ""))
+            end = _fmt_time(ev.get("end", ""))
             title = ev.get("summary", "(No title)")
             lines.append(f"  • {start}-{end}  {title}")
 
@@ -92,7 +92,7 @@ def _format_digest(events: list, tasks: list, emails: list) -> str:
     elif not emails:
         lines.append("  📭  Inbox zero — nothing unread!")
     else:
-        for email in emails[:10]:   # cap at 10 for readability
+        for email in emails[:10]:  # cap at 10 for readability
             sender = email.get("from", "Unknown")
             subject = email.get("subject", "(No subject)")
             # Trim long sender strings to just the name portion
@@ -108,16 +108,17 @@ def _format_digest(events: list, tasks: list, emails: list) -> str:
 
 # ── Per-user digest ───────────────────────────────────────────────────────────
 
+
 async def _fetch_calendar(db: Session, user) -> list | None:
     """Return today's calendar events, or None on error / not connected."""
     try:
         from app.agent.tools.integrations.google.calendar import get_calendar_service
         from app.services.google.google_calendar_service import fetch_today_events
+
         service = get_calendar_service(db, user.id)
         return await asyncio.to_thread(fetch_today_events, service)
     except Exception as exc:
-        logger.warning(
-            "Digest: calendar fetch failed for user %s: %s", user.id, exc)
+        logger.warning("Digest: calendar fetch failed for user %s: %s", user.id, exc)
         return None
 
 
@@ -125,10 +126,10 @@ async def _fetch_tasks(db: Session, user) -> list | None:
     """Return today's + overdue Todoist tasks, or None on error / not connected."""
     try:
         from app.services.todoist.todoist_service import fetch_tasks
+
         return await asyncio.to_thread(fetch_tasks, db, user, "today | overdue")
     except Exception as exc:
-        logger.warning(
-            "Digest: todoist fetch failed for user %s: %s", user.id, exc)
+        logger.warning("Digest: todoist fetch failed for user %s: %s", user.id, exc)
         return None
 
 
@@ -137,13 +138,11 @@ async def _fetch_emails(db: Session, user) -> list | None:
     try:
         from app.agent.tools.integrations.google.gmail import get_gmail_service
         from app.services.google.gmail_service import list_email_metadata
+
         service = get_gmail_service(db, user.id)
-        return await asyncio.to_thread(
-            list_email_metadata, service, "is:unread", 15
-        )
+        return await asyncio.to_thread(list_email_metadata, service, "is:unread", 15)
     except Exception as exc:
-        logger.warning(
-            "Digest: gmail fetch failed for user %s: %s", user.id, exc)
+        logger.warning("Digest: gmail fetch failed for user %s: %s", user.id, exc)
         return None
 
 
@@ -166,6 +165,7 @@ async def send_digest(bot, db: Session, user, telegram_chat_id: str) -> None:
 
 # ── Background loop ───────────────────────────────────────────────────────────
 
+
 async def digest_loop() -> None:
     """
     Runs forever.  At DIGEST_HOUR (server local time) it queries every
@@ -175,10 +175,12 @@ async def digest_loop() -> None:
     The Telegram bot singleton is resolved lazily on each digest run, so
     this loop is safe to start before (or even without) a Telegram gateway.
     """
-    from app.bot.telegram_handler import get_bot_instance   # lazy import avoids circular deps
+    from app.bot.telegram_handler import (
+        get_bot_instance,  # lazy import avoids circular deps
+    )
 
     logger.info("Digest loop started (fires daily at %02d:00).", DIGEST_HOUR)
-    fired_today: str | None = None   # tracks the date string we last fired on
+    fired_today: str | None = None  # tracks the date string we last fired on
 
     while True:
         now = datetime.now()
@@ -190,7 +192,8 @@ async def digest_loop() -> None:
 
             if bot is None:
                 logger.info(
-                    "Digest: Telegram bot not running, skipping today's digest.")
+                    "Digest: Telegram bot not running, skipping today's digest."
+                )
                 await asyncio.sleep(90)
                 continue
 
@@ -219,7 +222,8 @@ async def digest_loop() -> None:
                     except Exception as exc:
                         logger.error(
                             "Digest: unhandled error for user %s: %s",
-                            identity.user.id, exc,
+                            identity.user.id,
+                            exc,
                         )
 
             # Sleep past the current minute so we don't fire again this hour

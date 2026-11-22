@@ -5,9 +5,7 @@ router = APIRouter(prefix="/settings")
 
 
 @router.get("/gateways")
-def get_gateways(
-    filter: str = Query(default="all", pattern="^(all|enabled)$")
-):
+def get_gateways(filter: str = Query(default="all", pattern="^(all|enabled)$")):
     """
     Returns the list of gateways.
 

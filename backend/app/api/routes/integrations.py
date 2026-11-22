@@ -17,19 +17,15 @@ Flow:
     On any error:
         data: {"type": "error", "detail": "..."}
 """
-import asyncio
+
 import json
 import logging
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import StreamingResponse, HTMLResponse
-from sqlalchemy.orm import Session
-
-from app.core.dependencies import get_current_user
-from app.models.user import User
-from app.db.database import get_db
 from app.agent.tools.integrations.google import auth
-
+from app.db.database import get_db
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +38,7 @@ def _sse(data: dict) -> str:
 
 
 @router.get("/google/connect")
-async def connect_google_sse(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+async def connect_google_sse(db: Session = Depends(get_db)):
     """
     SSE endpoint that drives the two-phase Google OAuth flow.
 
@@ -53,6 +46,7 @@ async def connect_google_sse(
     Phase 2 (async wait): await the callback from the ``/google/callback``
                           route, then persist tokens → stream completion.
     """
+
     async def event_stream():
         # ── Phase 1: build the auth URL ─────────────────────────────────────
         try:
@@ -74,13 +68,13 @@ async def connect_google_sse(
 
         # ── Persist tokens ──────────────────────────────────────────────────
         try:
-            auth._upsert_token(db, current_user.id, token_data)
+            auth._upsert_token(db, token_data)
         except Exception as exc:
             logger.exception("Google OAuth: failed to persist token")
             yield _sse({"type": "error", "detail": f"Token storage failed: {exc}"})
             return
 
-        logger.info("Google connected for user_id=%s", current_user.id)
+        logger.info("Google connected")
         yield _sse({"type": "done", "status": "connected", "provider": "google"})
 
     return StreamingResponse(

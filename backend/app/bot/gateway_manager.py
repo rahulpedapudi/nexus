@@ -1,7 +1,6 @@
 import asyncio
 import logging
-from typing import Callable
-
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +49,9 @@ class GatewayManager:
         logger.info(f"Enabling gateway: {name}")
 
         # creating a background task for the gateway
-        task = asyncio.create_task(self._starters[name](
-            token=token), name=f"gateway.{name}")
+        task = asyncio.create_task(
+            self._starters[name](token=token), name=f"gateway.{name}"
+        )
 
         # adding task to the _tasks dict
         self._tasks[name] = task
@@ -75,7 +75,7 @@ class GatewayManager:
             task.cancel()
             try:
                 await asyncio.wait_for(asyncio.shield(task), timeout=5)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.CancelledError):
                 pass
 
         # removing the task from the _tasks dict
@@ -93,8 +93,7 @@ class GatewayManager:
             dict[str, str]: A dictionary containing the status of running gateways.
         """
         return {
-            name: "running" if task else "stopped"
-            for name, task in self._tasks.items()
+            name: "running" if task else "stopped" for name, task in self._tasks.items()
         }
 
     # to stop all gateways - used when server is shutting down

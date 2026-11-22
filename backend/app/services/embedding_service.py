@@ -1,9 +1,14 @@
+from typing import Literal
+
+from app.core.config import settings
 from google import genai
 from google.genai import types
-from app.core.config import settings
 
 
-def generate_embedding(text: str, task_type: str = "RETRIEVAL_DOCUMENT" or "RETRIEVAL_QUERY"):
+def generate_embedding(
+    text: str,
+    task_type: Literal["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"],
+):
     GEMINI_API_KEY = settings.GOOGLE_API_KEY
 
     if GEMINI_API_KEY:
@@ -17,7 +22,7 @@ def generate_embedding(text: str, task_type: str = "RETRIEVAL_DOCUMENT" or "RETR
         config=types.EmbedContentConfig(
             task_type=task_type,
             output_dimensionality=768,
-        )
+        ),
     )
 
     return result.embeddings[0].values

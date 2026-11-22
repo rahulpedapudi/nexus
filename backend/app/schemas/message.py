@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, UUID4
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+
+from pydantic import UUID4, BaseModel
 
 
 class RoleEnum(str, Enum):

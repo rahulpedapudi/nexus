@@ -1,9 +1,10 @@
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
-from groq import AsyncGroq
 from groq import (
     APIConnectionError,
     APITimeoutError,
+    AsyncGroq,
     AuthenticationError,
     BadRequestError,
     InternalServerError,
@@ -11,7 +12,7 @@ from groq import (
     RateLimitError,
 )
 
-from .base import LLMMessage, LLMResponse, BaseLLMProvider, LLMError, ToolCall
+from .base import BaseLLMProvider, LLMError, LLMMessage, LLMResponse, ToolCall
 
 
 def _normalize_tool_calls(raw_tool_calls) -> list[ToolCall]:

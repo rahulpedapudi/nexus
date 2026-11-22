@@ -1,8 +1,8 @@
-from app.core.credentials import creds_store
-from pydantic_settings import BaseSettings
 import os
-from dotenv import load_dotenv
 
+from app.core.credentials import creds_store
+from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
 load_dotenv()
 
@@ -20,15 +20,17 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = creds_store.get("GROQ_API_KEY") or ""
     OPENROUTER_API_KEY: str = creds_store.get("OPENROUTER_API_KEY") or ""
 
-    GROQ_DEFAULT_MODEL: str = creds_store.get(
-        "GROQ_DEFAULT_MODEL") or "openai/gpt-oss-120b"
-    OPENROUTER_DEFAULT_MODEL: str = creds_store.get(
-        "OPENROUTER_DEFAULT_MODEL") or "openrouter/free"
-    GEMINI_DEFAULT_MODEL: str = creds_store.get(
-        "GEMINI_DEFAULT_MODEL") or "gemini-3.1-flash-lite"
+    GROQ_DEFAULT_MODEL: str = (
+        creds_store.get("GROQ_DEFAULT_MODEL") or "openai/gpt-oss-120b"
+    )
+    OPENROUTER_DEFAULT_MODEL: str = (
+        creds_store.get("OPENROUTER_DEFAULT_MODEL") or "openrouter/free"
+    )
+    GEMINI_DEFAULT_MODEL: str = (
+        creds_store.get("GEMINI_DEFAULT_MODEL") or "gemini-3.1-flash-lite"
+    )
     GOOGLE_API_KEY: str = creds_store.get("GOOGLE_API_KEY") or ""
-    EMBEDDING_MODEL: str = creds_store.get(
-        "EMBEDDING_MODEL") or "gemini-embedding-2"
+    EMBEDDING_MODEL: str = creds_store.get("EMBEDDING_MODEL") or "gemini-embedding-2"
 
     ENABLED_GATEWAYS: list[str] = creds_store.get("ENABLED_GATEWAYS") or []
 
@@ -42,7 +44,7 @@ class Settings(BaseSettings):
 
     TODOIST_TOKEN: str = ""
 
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7   # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
 

@@ -1,27 +1,17 @@
-import os
 import asyncio
 import logging
+import os
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from google.auth import exceptions as google_auth_exceptions
-
 from app.core.paths import get_nexus_home
-from datetime import datetime, UTC, timedelta
-
-
-from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
-
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request as GoogleRequest
-
-
-
-from app.models.user import User
 from app.models.oauth_tokens import OAuthToken
-
+from google.auth import exceptions as google_auth_exceptions
+from google.auth.transport.requests import Request as GoogleRequest
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -53,19 +43,14 @@ def _make_flow(redirect_uri: str) -> InstalledAppFlow:
     Build an InstalledAppFlow from the desktop-type credentials file.
     The credentials.json must have an "installed" key (Desktop app client ID).
     """
-    flow = InstalledAppFlow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, SCOPES)
+    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
     flow.redirect_uri = redirect_uri
     return flow
 
 
-def _upsert_token(db: Session, user_id, token_data: dict) -> OAuthToken:
+def _upsert_token(db: Session, token_data: dict) -> OAuthToken:
     """Insert or update the OAuthToken row for this user + provider."""
-    token = (
-        db.query(OAuthToken)
-        .filter(OAuthToken.user_id == user_id, OAuthToken.provider == "google")
-        .one_or_none()
-    )
+    token = db.query(OAuthToken).filter(OAuthToken.provider == "google").one_or_none()
 
     scopes_str = ",".join(token_data.get("scopes", []))
 
@@ -76,7 +61,6 @@ def _upsert_token(db: Session, user_id, token_data: dict) -> OAuthToken:
 
     if token is None:
         token = OAuthToken(
-            user_id=user_id,
             provider="google",
             access_token=token_data["token"],
             refresh_token=token_data.get("refresh_token"),
@@ -136,7 +120,8 @@ def build_auth_url() -> tuple[str, str]:
 
     logger.info(
         "Google OAuth: generated consent URL (redirect_uri=%s, state=%s)",
-        REDIRECT_URI, state,
+        REDIRECT_URI,
+        state,
     )
     return auth_url, state
 
@@ -144,6 +129,7 @@ def build_auth_url() -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # Two-phase OAuth — Phase 2a: handle the callback from Google
 # ---------------------------------------------------------------------------
+
 
 def handle_callback(state: str, code: str) -> None:
     """
@@ -167,7 +153,7 @@ def handle_callback(state: str, code: str) -> None:
         "token": creds.token,
         "refresh_token": creds.refresh_token,
         "id_token": getattr(creds, "id_token", None),
-        "expiry": creds.expiry,         # naive UTC datetime from google-auth
+        "expiry": creds.expiry,  # naive UTC datetime from google-auth
         "scopes": list(creds.scopes or []),
     }
     event.set()
@@ -176,6 +162,7 @@ def handle_callback(state: str, code: str) -> None:
 # ---------------------------------------------------------------------------
 # Two-phase OAuth — Phase 2b: await the callback from the SSE stream
 # ---------------------------------------------------------------------------
+
 
 async def wait_for_callback(state: str, timeout: float = 300) -> dict:
     """
@@ -192,11 +179,10 @@ async def wait_for_callback(state: str, timeout: float = 300) -> dict:
 
     try:
         await asyncio.wait_for(event.wait(), timeout=timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         _pending_flows.pop(state, None)
         raise TimeoutError(
-            "Timed out waiting for Google OAuth callback. "
-            "Please try connecting again."
+            "Timed out waiting for Google OAuth callback. Please try connecting again."
         )
 
     _pending_flows.pop(state, None)
@@ -236,6 +222,7 @@ def _load_client_secrets() -> dict:
     or Web OAuth client ID.
     """
     import json
+
     with open(CLIENT_SECRETS_FILE) as f:
         data = json.load(f)
     # Desktop / installed-app client IDs use "installed"; web apps use "web".
@@ -262,7 +249,9 @@ def _is_expired(token: OAuthToken) -> bool:
     return expires_at <= now + timedelta(seconds=60)
 
 
-def _refresh_and_persist(db: Session, token: OAuthToken, creds: Credentials) -> Credentials:
+def _refresh_and_persist(
+    db: Session, token: OAuthToken, creds: Credentials
+) -> Credentials:
     """Refresh the credentials and write the new access token back to DB."""
     logger.info("Refreshing Google OAuth token for user_id=%s", token.user_id)
     try:
@@ -272,7 +261,8 @@ def _refresh_and_persist(db: Session, token: OAuthToken, creds: Credentials) -> 
         # Delete the stale token so the user is prompted to re-authenticate.
         logger.warning(
             "Google OAuth refresh failed for user_id=%s (token revoked/expired): %s",
-            token.user_id, exc,
+            token.user_id,
+            exc,
         )
         db.delete(token)
         db.commit()
@@ -300,15 +290,19 @@ def get_credentials(db: Session, user_id) -> Credentials:
     """
     token = _load_token(db, user_id)
     if not token:
-        raise ValueError(f"No Google OAuth token found for user_id={user_id}. "
-                         "User must connect Google Calendar first.")
+        raise ValueError(
+            f"No Google OAuth token found for user_id={user_id}. "
+            "User must connect Google Calendar first."
+        )
 
     creds = _creds_from_token(token)
 
     if _is_expired(token):
         if not creds.refresh_token:
-            raise ValueError("Token expired and no refresh token available. "
-                             "User must re-connect Google Calendar.")
+            raise ValueError(
+                "Token expired and no refresh token available. "
+                "User must re-connect Google Calendar."
+            )
         creds = _refresh_and_persist(db, token, creds)
 
     return creds

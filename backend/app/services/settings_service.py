@@ -1,7 +1,7 @@
-from fastapi import HTTPException
+from app.bot.gateway_manager import gateway_manager
 from app.core.config import settings
 from app.core.credentials import creds_store
-from app.bot.gateway_manager import gateway_manager
+from fastapi import HTTPException
 
 
 def list_gateways(filter: str) -> dict[str, list[str]]:
@@ -98,5 +98,9 @@ def get_llm():
     llm_provider = creds_store.get("LLM_PROVIDER")
     return {
         "llm": llm_provider,
-        "model": settings.GROQ_DEFAULT_MODEL if llm_provider == "groq" else settings.OPENROUTER_DEFAULT_MODEL if llm_provider == "openrouter" else settings.GEMINI_DEFAULT_MODEL
+        "model": settings.GROQ_DEFAULT_MODEL
+        if llm_provider == "groq"
+        else settings.OPENROUTER_DEFAULT_MODEL
+        if llm_provider == "openrouter"
+        else settings.GEMINI_DEFAULT_MODEL,
     }

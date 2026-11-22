@@ -1,7 +1,7 @@
-from app.db.database import Base
-from sqlalchemy import Column, String, UUID, ForeignKey, DateTime
-
 import uuid
+
+from app.db.database import Base
+from sqlalchemy import UUID, Column, DateTime, ForeignKey, String
 
 
 class TelegramLinkToken(Base):
@@ -13,17 +13,8 @@ class TelegramLinkToken(Base):
         default=uuid.uuid4,
     )
 
-    token = Column(
-        String,
-        nullable=False
-    )
+    token = Column(String, nullable=False)
 
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL")
-    )
+    # user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
 
-    expires_at = Column(
-        DateTime,
-        nullable=False
-    )
+    expires_at = Column(DateTime, nullable=False)
